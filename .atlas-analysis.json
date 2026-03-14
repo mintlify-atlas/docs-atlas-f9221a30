@@ -1,0 +1,130 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "gstack",
+  "projectDescription": "Claude Code workflow toolkit with AI agent skills and headless browser automation for engineering teams.",
+  "theme": "aspen",
+  "primaryColor": "#da7656",
+  "lightColor": "#da7656",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Workflow Skills",
+            "pages": [
+              "skills/overview",
+              "skills/plan-ceo-review",
+              "skills/plan-eng-review",
+              "skills/review",
+              "skills/ship",
+              "skills/browse",
+              "skills/qa",
+              "skills/setup-browser-cookies",
+              "skills/retro"
+            ]
+          },
+          {
+            "group": "Browser Automation",
+            "pages": [
+              "browser/architecture",
+              "browser/commands",
+              "browser/snapshot-system",
+              "browser/cookie-management",
+              "browser/troubleshooting"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/multi-workspace-setup",
+              "guides/greptile-integration",
+              "guides/testing-authenticated-pages",
+              "guides/development"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Command Reference",
+        "groups": [
+          {
+            "group": "Browser Commands",
+            "pages": [
+              "commands/navigation",
+              "commands/reading",
+              "commands/inspection",
+              "commands/interaction",
+              "commands/visual",
+              "commands/tabs",
+              "commands/server"
+            ]
+          },
+          {
+            "group": "Slash Commands",
+            "pages": [
+              "commands/plan-ceo-review",
+              "commands/plan-eng-review",
+              "commands/review",
+              "commands/ship",
+              "commands/browse",
+              "commands/qa",
+              "commands/setup-browser-cookies",
+              "commands/retro"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Additional Info",
+            "pages": [
+              "contributing",
+              "changelog",
+              "faq"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Eight opinionated workflow skills as slash commands for Claude Code",
+    "Persistent headless browser with sub-second latency and session state",
+    "Ref-based element interaction system using accessibility tree",
+    "Automated QA testing with diff-aware mode for feature branches",
+    "Cookie import from real browsers (Chrome, Arc, Brave, Edge, Comet)",
+    "Greptile PR review integration with automatic triage",
+    "Multi-workspace support with isolated browser instances",
+    "Engineering retrospectives with team-aware metrics and feedback"
+  ],
+  "publicApiSurface": [
+    "/plan-ceo-review — Founder mode: rethink product direction and find the 10-star version",
+    "/plan-eng-review — Engineering manager mode: lock in architecture, diagrams, and edge cases",
+    "/review — Paranoid staff engineer mode: find bugs that pass CI but break production",
+    "/ship — Release engineer mode: sync, test, resolve reviews, push, and create PR",
+    "/browse — QA engineer mode: interact with live URLs via headless browser",
+    "/qa — QA lead mode: systematic testing with diff-aware, full, quick, and regression modes",
+    "/setup-browser-cookies — Import cookies from real browsers into headless session",
+    "/retro — Engineering manager mode: weekly retrospective with team metrics",
+    "$B goto <url> — Navigate to URL in headless browser",
+    "$B snapshot -i — Generate accessibility tree with @e refs for element selection",
+    "$B click @e1 — Click element by ref",
+    "$B fill @e2 <text> — Fill input field",
+    "$B screenshot [path] — Capture screenshot",
+    "$B console — View console messages and errors",
+    "$B text — Extract cleaned page text",
+    "$B cookie-import-browser [browser] — Import cookies from Chrome/Arc/Brave/Edge/Comet"
+  ]
+}
