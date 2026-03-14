@@ -1,0 +1,308 @@
+---
+title: "/ship"
+description: "Fully automated ship workflow: sync, test, review, bump, push, PR"
+---
+
+## Overview
+
+The `/ship` command is a **fully automated** workflow that takes your feature branch from current state to merged PR. It syncs with main, runs tests, reviews the diff, bumps version, updates changelog, commits, pushes, and creates a PR.
+
+## When to use
+
+Use `/ship` when:
+- Your feature is ready to merge
+- You're on a feature branch (not main)
+- You want the full ship workflow automated
+
+<Warning>
+  **Not for planning.** Use `/ship` when code is ready. For plan review, use [`/plan-eng-review`](/commands/plan-eng-review) or [`/plan-ceo-review`](/commands/plan-ceo-review).
+</Warning>
+
+## Syntax
+
+```bash
+/ship
+```
+
+No arguments required. Runs fully automated from current branch.
+
+## What it does
+
+The workflow runs 8 steps automatically:
+
+### Step 1: Pre-flight
+1. Check current branch (abort if on main)
+2. Check for uncommitted changes (always includes them — no prompt)
+3. Show what's being shipped (`git diff main...HEAD --stat` and `git log`)
+
+### Step 2: Merge origin/main
+Fetch and merge `origin/main` into your feature branch:
+```bash
+git fetch origin main && git merge origin/main --no-edit
+```
+
+**If conflicts:** Auto-resolve simple ones (VERSION, schema.rb, CHANGELOG). Stop if complex.
+
+### Step 3: Run tests
+Runs both test suites in parallel on the merged code:
+```bash
+bin/test-lane 2>&1 | tee /tmp/ship_tests.txt &
+npm run test 2>&1 | tee /tmp/ship_vitest.txt &
+wait
+```
+
+<Warning>
+  **Never** runs bare `RAILS_ENV=test bin/rails db:migrate`. Use `bin/test-lane` which calls `db:test:prepare` internally with the correct lane database.
+</Warning>
+
+**If tests fail:** Show failures and STOP. Do not proceed.
+
+### Step 3.25: Eval suites (conditional)
+
+Runs **only if** the diff touches prompt-related files:
+- `app/services/*_prompt_builder.rb`
+- `app/services/*_generation_service.rb`, `*_writer_service.rb`
+- `app/services/*_evaluator.rb`, `*_scorer.rb`, `*_classifier_service.rb`
+- `app/services/concerns/*voice*.rb`, `*writing*.rb`, `*prompt*.rb`
+- `app/services/chat_tools/*.rb`, `app/services/x_thread_tools/*.rb`
+- `config/system_prompts/*.txt`
+- `test/evals/**/*`
+
+**Tier:** Always uses `EVAL_JUDGE_TIER=full` (Sonnet structural + Opus persona judges) — `/ship` is a pre-merge gate.
+
+**If evals fail:** Show failures, cost dashboard, and STOP.
+
+<Note>
+  Evals are skipped entirely if no prompt files changed. Saves cost and time.
+</Note>
+
+### Step 3.5: Pre-landing review
+
+Runs the [`/review`](/commands/review) checklist against `git diff origin/main`:
+
+**Pass 1 (CRITICAL):** SQL safety, LLM trust boundary violations
+
+**Pass 2 (INFORMATIONAL):** Conditional side effects, magic numbers, test gaps, etc.
+
+**Output:** Always shows ALL findings (critical + informational)
+
+**If CRITICAL issues found:** For EACH issue, asks:
+- A) Fix it now (recommended)
+- B) Acknowledge and ship anyway
+- C) False positive — skip
+
+If you choose A on any issue: applies fixes, commits them, **re-runs tests**, then continues.
+
+If only B/C chosen: continues to Step 3.75.
+
+### Step 3.75: Greptile review (if PR exists)
+
+Fetches and triages Greptile review comments (if a PR already exists).
+
+**Classifications:**
+- **VALID & ACTIONABLE:** AskUserQuestion (Fix / Acknowledge / FP)
+- **VALID BUT ALREADY FIXED:** Auto-replies "Good catch — fixed in `<sha>`"
+- **FALSE POSITIVE:** AskUserQuestion (Reply explaining / Fix anyway / Ignore)
+- **SUPPRESSED:** Skip (known FPs)
+
+**If fixes applied:** Re-run tests before continuing.
+
+<Note>
+  If no PR exists or `gh` fails, this step is skipped silently. Greptile integration is additive.
+</Note>
+
+### Step 4: Version bump
+
+Reads `VERSION` file (4-digit: `MAJOR.MINOR.PATCH.MICRO`).
+
+**Auto-decides bump level:**
+- **MICRO** (4th digit): &lt;50 lines changed, trivial tweaks
+- **PATCH** (3rd digit): 50+ lines, bug fixes, small-medium features
+- **MINOR** (2nd digit): **ASK** — major features or architectural changes
+- **MAJOR** (1st digit): **ASK** — milestones or breaking changes
+
+Bumping a digit resets all digits to its right to 0.
+
+Example: `0.19.1.0` + PATCH → `0.19.2.0`
+
+### Step 5: CHANGELOG
+
+Auto-generates entry from **ALL commits on the branch** (not just recent):
+- Uses `git log main..HEAD --oneline` and `git diff main...HEAD`
+- Categorizes: `### Added`, `### Changed`, `### Fixed`, `### Removed`
+- Inserts after header (line 5), dated today
+- Format: `## [X.Y.Z.W] - YYYY-MM-DD`
+
+<Note>
+  Does NOT ask for change descriptions. Infers from diff and commit history.
+</Note>
+
+### Step 6: Commit (bisectable chunks)
+
+Creates **small, logical commits** for `git bisect`:
+
+**Ordering:**
+1. Infrastructure (migrations, config, routes)
+2. Models & services (with tests)
+3. Controllers & views (with tests)
+4. VERSION + CHANGELOG (final commit)
+
+**Rules:**
+- Model + its test = same commit
+- Service + its test = same commit
+- Controller + views + test = same commit
+- &lt;50 lines across &lt;4 files = single commit is fine
+
+**Each commit must be independently valid** — no broken imports.
+
+**Final commit format:**
+```bash
+git commit -m "chore: bump version and changelog (vX.Y.Z.W)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+```
+
+### Step 7: Push
+
+```bash
+git push -u origin <branch-name>
+```
+
+### Step 8: Create PR
+
+Uses `gh pr create` with:
+- Title from commit message
+- Body includes:
+  - Summary (from CHANGELOG)
+  - Pre-landing review findings
+  - Eval results (if run) or "Evals skipped"
+  - Greptile review (if applicable)
+  - Test plan
+  - Generated by Claude Code footer
+
+**Output:** PR URL (final output user sees)
+
+## Non-interactive workflow
+
+`/ship` **never stops** except for:
+- On main branch (abort)
+- Merge conflicts (stop, show conflicts)
+- Test failures (stop, show failures)
+- Pre-landing review CRITICAL issues (ask per issue)
+- MINOR or MAJOR version bump (ask)
+- Greptile comments needing decisions
+
+**Never asks for:**
+- Uncommitted changes (always includes)
+- Version bump choice for MICRO/PATCH (auto-picks)
+- CHANGELOG content (auto-generates)
+- Commit message approval (auto-commits)
+- Multi-file changesets (auto-splits)
+
+## Example workflow
+
+```markdown
+User: /ship
+
+Assistant:
+Step 1: Pre-flight
+✓ On branch: feature/billing-refactor
+✓ Uncommitted: 3 files (including)
+✓ Diff: 12 files changed, +340 -120
+
+Step 2: Merge origin/main
+✓ Already up to date
+
+Step 3: Run tests
+✓ Rails: 247 runs, 0 failures
+✓ Vitest: 89 tests passed
+
+Step 3.25: Eval suites
+No prompt-related files changed — skipping evals.
+
+Step 3.5: Pre-landing review
+Pre-Landing Review: 1 issue (1 critical, 0 informational)
+
+CRITICAL Issue 1: Missing transaction
+File: app/services/billing/refund_service.rb:24
+
+Problem: Multi-step mutation (update subscription, create refund)
+without transaction wrapper.
+
+Options:
+  A) Fix it now — wrap in ActiveRecord::Base.transaction
+  B) Acknowledge and ship anyway
+  C) False positive
+
+We recommend A: Multi-step DB mutations need transactions to prevent
+partial state on errors.
+
+User: A
+
+Assistant:
+Applying fix...
+✓ Fixed app/services/billing/refund_service.rb
+✓ Committed: "fix: wrap refund in transaction"
+
+Re-running tests...
+✓ Rails: 247 runs, 0 failures
+✓ Vitest: 89 tests passed
+
+Step 4: Version bump
+340 lines changed → auto-selected PATCH
+0.19.1.0 → 0.19.2.0
+
+Step 5: CHANGELOG
+✓ Generated entry for 0.19.2.0
+
+Step 6: Commit
+✓ Committed 3 logical chunks + VERSION/CHANGELOG
+
+Step 7: Push
+✓ Pushed to origin/feature/billing-refactor
+
+Step 8: Create PR
+✓ PR created: https://github.com/org/repo/pull/123
+
+Done.
+```
+
+## Tips for best results
+
+<AccordionGroup>
+  <Accordion title="Run from a clean state">
+    While `/ship` handles uncommitted changes, it's cleaner to commit
+    or stash work-in-progress before running.
+  </Accordion>
+
+  <Accordion title="Fix critical issues">
+    When pre-landing review finds CRITICAL issues (SQL injection, missing
+    transactions, trust boundary violations), choose "Fix it now." These
+    are security/data risks.
+  </Accordion>
+
+  <Accordion title="Let it auto-bump for MICRO/PATCH">
+    The auto-bump logic is conservative. If you disagree with MICRO vs
+    PATCH, you can always edit VERSION manually after the PR is created.
+  </Accordion>
+
+  <Accordion title="Check the PR body">
+    The auto-generated PR body includes review findings, eval results,
+    and test status. Glance at it before merging.
+  </Accordion>
+</AccordionGroup>
+
+## Important rules
+
+- **Never skip tests** — If tests fail, stop.
+- **Never skip pre-landing review** — If checklist is unreadable, stop.
+- **Never force push** — Use regular `git push` only.
+- **Always use 4-digit VERSION** — Read from VERSION file.
+- **Date format in CHANGELOG:** `YYYY-MM-DD`
+- **Split commits for bisectability** — Each commit = one logical change.
+
+## Related commands
+
+- [`/review`](/commands/review) — Run review standalone (Step 3.5)
+- [`/qa`](/commands/qa) — QA test the deployed app
+- [`/retro`](/commands/retro) — Retrospective after shipping

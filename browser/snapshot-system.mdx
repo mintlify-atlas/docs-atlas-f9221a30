@@ -1,0 +1,229 @@
+---
+title: "Snapshot System"
+description: "How refs work and why they're better than CSS selectors"
+---
+
+## The ref system
+
+Refs (`@e1`, `@e2`, `@c1`) are how the agent addresses page elements without writing CSS selectors or XPath. This is the browser's key innovation.
+
+## How it works
+
+<Steps>
+  <Step title="Agent runs snapshot">
+    `$B snapshot -i`
+  </Step>
+  <Step title="Server calls Playwright">
+    Server calls `page.accessibility.snapshot()` to get the ARIA tree
+  </Step>
+  <Step title="Parser assigns refs">
+    Parser walks the ARIA tree and assigns sequential refs: `@e1`, `@e2`, `@e3`...
+  </Step>
+  <Step title="Build Locators">
+    For each ref, builds a Playwright Locator using `getByRole(role, { name }).nth(index)`
+  </Step>
+  <Step title="Store mapping">
+    Stores `Map<string, Locator>` on the BrowserManager instance
+  </Step>
+  <Step title="Return tree">
+    Returns the annotated tree as plain text
+  </Step>
+  <Step title="Later: use refs">
+    Agent runs `$B click @e3`, server resolves `@e3` → Locator → `locator.click()`
+  </Step>
+</Steps>
+
+## Why Locators, not DOM mutation
+
+The obvious approach is to inject `data-ref="@e1"` attributes into the DOM. This breaks on:
+
+- **CSP (Content Security Policy)** — Many production sites block DOM modification from scripts
+- **React/Vue/Svelte hydration** — Framework reconciliation can strip injected attributes
+- **Shadow DOM** — Can't reach inside shadow roots from the outside
+
+Playwright Locators are external to the DOM. They use the accessibility tree (which Chromium maintains internally) and `getByRole()` queries. No DOM mutation, no CSP issues, no framework conflicts.
+
+## Snapshot flags
+
+### `-i / --interactive`
+
+Only show interactive elements (buttons, links, inputs, etc.). This is what you want 95% of the time.
+
+```bash
+$B snapshot -i
+```
+
+**Output:**
+```
+button "Sign in" @e1
+textbox "Email" @e2
+textbox "Password" @e3
+button "Submit" @e4
+link "Forgot password?" @e5
+```
+
+### `-c / --compact`
+
+Compact output — one element per line, no indentation.
+
+```bash
+$B snapshot -ic
+```
+
+### `-d N / --depth N`
+
+Limit tree depth to N levels. Useful for large pages.
+
+```bash
+$B snapshot -i -d 3
+```
+
+### `-s <selector> / --scope <selector>`
+
+Scope snapshot to a specific element (CSS selector or ref).
+
+```bash
+$B snapshot -i -s "#login-form"
+$B snapshot -i -s @e5
+```
+
+### `-D / --diff`
+
+Diff against the previous snapshot. Use this to verify that an action actually worked.
+
+```bash
+# Take baseline
+$B snapshot -i
+
+# Perform action
+$B click @e1
+
+# Diff shows what changed
+$B snapshot -iD
+```
+
+**Output:**
+```diff
+- button "Sign in" @e1
++ button "Sign out" @e1
++ text "Welcome, test@example.com"
+```
+
+### `-a / --annotate`
+
+Generate an annotated screenshot with ref labels overlaid on elements.
+
+```bash
+$B snapshot -ia
+```
+
+Injects temporary overlay divs at each ref's bounding box, takes a screenshot with ref labels visible, then removes the overlays.
+
+### `-o <path> / --output <path>`
+
+Control output path for annotated screenshots.
+
+```bash
+$B snapshot -ia -o /tmp/annotated.png
+```
+
+### `-C / --cursor-interactive`
+
+Find cursor-interactive elements (not in ARIA tree). Assigns `@c1`, `@c2` refs.
+
+```bash
+$B snapshot -C
+```
+
+This scans for non-ARIA interactive elements:
+- Elements with `cursor: pointer`
+- Elements with `onclick` attributes
+- Elements with `tabindex >= 0`
+
+These are elements the ARIA tree misses but users can still click (common in custom React components).
+
+## Ref lifecycle
+
+Refs are cleared on navigation (the `framenavigated` event on the main frame). This is correct — after navigation, all locators are stale. The agent must run `snapshot` again to get fresh refs.
+
+<Warning>
+Stale refs fail loudly with "Ref not found". This is by design — stale refs should never click the wrong element.
+</Warning>
+
+## Combining flags
+
+Flags can be combined:
+
+```bash
+# Interactive elements only, compact format, depth 2
+$B snapshot -icd 2
+
+# Interactive + cursor-interactive, with diff
+$B snapshot -iCD
+
+# Scoped to a form, with annotated screenshot
+$B snapshot -ia -s "#checkout-form" -o /tmp/form.png
+```
+
+## Example: form filling workflow
+
+```bash
+# 1. Navigate to page
+$B goto https://app.example.com/signup
+
+# 2. Get interactive elements
+$B snapshot -i
+
+# Output:
+# textbox "Email" @e1
+# textbox "Password" @e2
+# textbox "Confirm password" @e3
+# checkbox "I agree to terms" @e4
+# button "Sign up" @e5
+
+# 3. Fill the form
+$B fill @e1 "test@example.com"
+$B fill @e2 "password123"
+$B fill @e3 "password123"
+$B click @e4
+
+# 4. Verify state before submitting
+$B is checked @e4
+# Output: true
+
+# 5. Submit
+$B click @e5
+
+# 6. Verify navigation
+$B snapshot -iD
+# Shows diff: signup form gone, welcome message appeared
+```
+
+## Best practices
+
+<Tip>
+**Always use `-i`** — Most pages have hundreds of non-interactive elements. You almost never need the full tree.
+</Tip>
+
+<Tip>
+**Use `-D` to verify actions** — Don't assume a click worked. Diff the snapshot to see what actually changed.
+</Tip>
+
+<Tip>
+**Use `-C` for custom components** — If the normal snapshot misses clickable elements (common in React apps), try `-C`.
+</Tip>
+
+<Tip>
+**Scope large pages** — If a page has 100+ interactive elements, use `-s` to focus on a specific section.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Interaction Commands" icon="hand-pointer" href="/commands/interaction">
+    Learn all the commands that use refs
+  </Card>
+  <Card title="Browser Architecture" icon="diagram-project" href="/browser/architecture">
+    Understand how the ref system works internally
+  </Card>
+</CardGroup>

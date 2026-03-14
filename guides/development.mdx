@@ -1,0 +1,401 @@
+---
+title: Development & Contributing
+description: Set up gstack for local development and contribute improvements
+---
+
+## Overview
+
+This guide covers how to set up gstack for local development, test your changes, and contribute back to the project.
+
+## Quick Start
+
+gstack skills are Markdown files that Claude Code discovers from a `skills/` directory. For development, you want Claude Code to use the skills **in your working tree** — so edits take effect instantly without copying or deploying.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/garrytan/gstack.git
+    cd gstack
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    ```bash
+    bun install
+    ```
+    
+    Requires [Bun](https://bun.sh/) v1.0+
+  </Step>
+  
+  <Step title="Activate dev mode">
+    ```bash
+    bin/dev-setup
+    ```
+    
+    Creates symlinks so Claude Code reads skills from your checkout
+  </Step>
+  
+  <Step title="Make changes">
+    Edit any `SKILL.md.tmpl` file, then regenerate:
+    
+    ```bash
+    bun run gen:skill-docs
+    ```
+  </Step>
+  
+  <Step title="Test in Claude Code">
+    Invoke the skill (e.g. `/review`) — changes are live immediately
+  </Step>
+  
+  <Step title="Deactivate dev mode when done">
+    ```bash
+    bin/dev-teardown
+    ```
+    
+    Restores your global gstack install
+  </Step>
+</Steps>
+
+## Commands
+
+```bash
+bun install          # Install dependencies
+bun test             # Run tests (browse + snapshot + skill validation)
+bun run test:eval    # Run LLM-as-judge evals (needs ANTHROPIC_API_KEY)
+bun run test:e2e     # Run E2E skill tests (needs SKILL_E2E=1, ~$0.50/run)
+bun run dev <cmd>    # Run CLI in dev mode
+bun run build        # Generate docs + compile binaries
+bun run gen:skill-docs  # Regenerate SKILL.md files from templates
+bun run skill:check  # Health dashboard for all skills
+bun run dev:skill    # Watch mode: auto-regen + validate on change
+```
+
+## Project Structure
+
+```
+gstack/
+├── browse/          # Headless browser CLI (Playwright)
+│   ├── src/         # CLI + server + commands
+│   │   ├── commands.ts  # Command registry (single source of truth)
+│   │   └── snapshot.ts  # SNAPSHOT_FLAGS metadata array
+│   ├── test/        # Integration tests + fixtures
+│   └── dist/        # Compiled binary (gitignored)
+├── scripts/         # Build + DX tooling
+│   ├── gen-skill-docs.ts  # Template → SKILL.md generator
+│   ├── skill-check.ts     # Health dashboard
+│   └── dev-skill.ts       # Watch mode
+├── test/            # Skill validation + eval tests
+│   ├── helpers/     # skill-parser.ts, session-runner.ts
+│   ├── skill-validation.test.ts  # Static command validation
+│   ├── gen-skill-docs.test.ts    # Generator + quality evals
+│   ├── skill-e2e.test.ts         # Agent SDK E2E
+│   └── skill-llm-eval.test.ts   # LLM-as-judge
+├── ship/            # Ship workflow skill
+├── review/          # PR review skill
+├── plan-ceo-review/ # CEO review skill
+├── plan-eng-review/ # Engineering review skill
+├── qa/              # QA testing skill
+├── retro/           # Retrospective skill
+├── setup-browser-cookies/  # Cookie import skill
+├── setup            # One-time setup script
+├── SKILL.md         # Generated (don't edit directly)
+├── SKILL.md.tmpl    # Template (edit this)
+└── package.json     # Build scripts
+```
+
+## SKILL.md Template System
+
+SKILL.md files are **generated** from `.tmpl` templates. Never edit the `.md` files directly — your changes will be overwritten.
+
+### Workflow
+
+<Steps>
+  <Step title="Edit the template">
+    ```bash
+    vim SKILL.md.tmpl              # or browse/SKILL.md.tmpl
+    ```
+  </Step>
+  
+  <Step title="Regenerate">
+    ```bash
+    bun run gen:skill-docs
+    ```
+  </Step>
+  
+  <Step title="Check health">
+    ```bash
+    bun run skill:check
+    ```
+  </Step>
+  
+  <Step title="Commit both files">
+    ```bash
+    git add SKILL.md.tmpl SKILL.md
+    git commit -m "docs: update skill template"
+    ```
+  </Step>
+</Steps>
+
+### Watch Mode
+
+Auto-regenerate on save:
+
+```bash
+bun run dev:skill
+```
+
+This watches all `.tmpl` files and regenerates + validates on change.
+
+### Adding Commands
+
+**To add a browse command:**
+1. Add it to `browse/src/commands.ts`
+2. Run `bun run build`
+3. Command appears in generated docs automatically
+
+**To add a snapshot flag:**
+1. Add it to `SNAPSHOT_FLAGS` in `browse/src/snapshot.ts`
+2. Run `bun run build`
+3. Flag appears in generated docs automatically
+
+## Testing
+
+### Setup
+
+```bash
+# 1. Copy .env.example and add your API key
+cp .env.example .env
+# Edit .env → set ANTHROPIC_API_KEY=sk-ant-...
+
+# 2. Install deps
+bun install
+```
+
+Bun auto-loads `.env` — no extra config needed.
+
+### Test Tiers
+
+| Tier | Command | Cost | What it tests |
+|------|---------|------|---------------|
+| 1 — Static | `bun test` | Free | Command validation, snapshot flags, SKILL.md correctness |
+| 2 — E2E | `bun run test:e2e` | ~$0.50 | Full skill execution via Agent SDK |
+| 3 — LLM eval | `bun run test:eval` | ~$0.03 | Doc quality scoring via LLM-as-judge |
+
+### Tier 1: Static Validation (Free)
+
+Runs automatically with `bun test`. No API keys needed.
+
+```bash
+bun test
+```
+
+Validates:
+- Every `$B` command in SKILL.md exists in `commands.ts`
+- Snapshot flags are valid
+- Generated docs match templates
+- Command descriptions meet quality thresholds
+
+### Tier 2: E2E via Agent SDK (~$0.50/run)
+
+Spawns a real Claude Code session, invokes skills, and scans for errors:
+
+```bash
+# Must run from plain terminal (can't nest inside Claude Code)
+SKILL_E2E=1 bun test test/skill-e2e.test.ts
+```
+
+- Gated by `SKILL_E2E=1` env var
+- Auto-skips if running inside Claude Code
+- Saves conversation transcripts on failure
+
+### Tier 3: LLM-as-Judge (~$0.03/run)
+
+Uses Claude Haiku to score generated docs on clarity, completeness, and actionability:
+
+```bash
+# Needs ANTHROPIC_API_KEY in .env
+bun run test:eval
+```
+
+Each dimension scored 1-5. Threshold: all dimensions ≥ 4.
+
+## How to Test Changes
+
+### Testing SKILL.md edits
+
+<Steps>
+  <Step title="Activate dev mode">
+    ```bash
+    bin/dev-setup
+    ```
+  </Step>
+  
+  <Step title="Edit template">
+    ```bash
+    vim review/SKILL.md.tmpl
+    ```
+  </Step>
+  
+  <Step title="Regenerate">
+    ```bash
+    bun run gen:skill-docs
+    ```
+  </Step>
+  
+  <Step title="Test in Claude Code">
+    Open Claude Code and run:
+    ```
+    /review
+    ```
+    
+    Changes take effect immediately
+  </Step>
+</Steps>
+
+### Testing browse source changes
+
+<Steps>
+  <Step title="Edit TypeScript source">
+    ```bash
+    vim browse/src/commands.ts
+    ```
+  </Step>
+  
+  <Step title="Rebuild binary">
+    ```bash
+    bun run build
+    ```
+  </Step>
+  
+  <Step title="Test via CLI">
+    ```bash
+    bun run dev goto https://example.com
+    ```
+    
+    Or test in Claude Code:
+    ```
+    /browse example.com
+    ```
+  </Step>
+</Steps>
+
+### Testing in another project
+
+When you want to test your branch in a different project:
+
+**Global install:**
+```bash
+cd ~/.claude/skills/gstack
+git fetch origin
+git checkout origin/your-branch
+bun install
+bun run build
+```
+
+**Project-vendored copy:**
+```bash
+# Update global first
+cd ~/.claude/skills/gstack
+git fetch origin
+git checkout origin/your-branch
+bun install && bun run build
+
+# Replace vendored copy
+cd /path/to/other-project
+for s in browse plan-ceo-review plan-eng-review review ship retro qa setup-browser-cookies; do
+  rm -f .claude/skills/$s
+done
+rm -rf .claude/skills/gstack
+cp -Rf ~/.claude/skills/gstack .claude/skills/gstack
+rm -rf .claude/skills/gstack/.git
+cd .claude/skills/gstack && ./setup
+```
+
+## Deploying to Active Skill
+
+The active skill lives at `~/.claude/skills/gstack/`. After merging your PR:
+
+<Steps>
+  <Step title="Push your branch">
+    ```bash
+    git push origin your-branch
+    ```
+  </Step>
+  
+  <Step title="Update global install">
+    ```bash
+    cd ~/.claude/skills/gstack
+    git fetch origin
+    git reset --hard origin/main
+    ```
+  </Step>
+  
+  <Step title="Rebuild">
+    ```bash
+    cd ~/.claude/skills/gstack
+    bun run build
+    ```
+  </Step>
+</Steps>
+
+Or copy the binary directly:
+```bash
+cp browse/dist/browse ~/.claude/skills/gstack/browse/dist/browse
+```
+
+## Conductor Workspaces
+
+If using [Conductor](https://conductor.build), `conductor.json` wires up lifecycle automatically:
+
+| Hook | Script | What it does |
+|------|--------|--------------|
+| `setup` | `bin/dev-setup` | Copies `.env`, installs deps, symlinks skills |
+| `archive` | `bin/dev-teardown` | Removes symlinks, cleans up |
+
+When Conductor creates a workspace:
+1. Copies `.env` from main worktree
+2. Runs `bun install`
+3. Sets up dev mode automatically
+
+**First-time setup:** Put `ANTHROPIC_API_KEY` in `.env` in the main repo. Every Conductor workspace inherits it.
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/skill-docs.yml`) runs on every push:
+
+```bash
+bun run gen:skill-docs --dry-run
+```
+
+If generated SKILL.md files differ from committed versions, CI fails. This catches stale docs before they merge.
+
+## Things to Know
+
+- **SKILL.md files are generated** — Edit `.tmpl`, not `.md`
+- **Browse changes need rebuild** — Run `bun run build` after editing `browse/src/*.ts`
+- **Dev mode shadows global** — Local skills override `~/.claude/skills/gstack`
+- **Conductor workspaces auto-setup** — `bin/dev-setup` runs via `conductor.json`
+- **`.env` propagates** — Set once in main repo, all workspaces inherit
+- **`.claude/skills/` is gitignored** — Symlinks never get committed
+
+## Shipping Your Changes
+
+When you're happy with your edits:
+
+```bash
+/ship
+```
+
+This runs tests, reviews the diff, bumps the version, and opens a PR.
+
+See the [ship skill documentation](/skills/ship) for the full workflow.
+
+## Getting Help
+
+- **Issues:** https://github.com/garrytan/gstack/issues
+- **Discussions:** https://github.com/garrytan/gstack/discussions
+- **Contributing Guide:** Read `CONTRIBUTING.md` in the repo
+
+## License
+
+MIT

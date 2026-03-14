@@ -1,122 +1,119 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "gstack",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#da7656",
+    "light": "#da7656",
+    "dark": "#141414"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/0c913d8d-597e-44e8-8b78-bc4dfee51bc9.png",
+  "logo": {
+    "light": "https://media.brand.dev/d6c060ec-2523-4c85-8154-1eb3bc30b0a5.svg",
+    "dark": "https://media.brand.dev/d6c060ec-2523-4c85-8154-1eb3bc30b0a5.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/garrytan/gstack"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/garrytan/gstack"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Workflow Skills",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "skills/overview",
+              "skills/plan-ceo-review",
+              "skills/plan-eng-review",
+              "skills/review",
+              "skills/ship",
+              "skills/browse",
+              "skills/qa",
+              "skills/setup-browser-cookies",
+              "skills/retro"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Browser Automation",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "browser/architecture",
+              "browser/commands",
+              "browser/snapshot-system",
+              "browser/cookie-management",
+              "browser/troubleshooting"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Guides",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/multi-workspace-setup",
+              "guides/greptile-integration",
+              "guides/testing-authenticated-pages",
+              "guides/development"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Command Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Browser Commands",
             "pages": [
-              "api-reference/introduction"
+              "commands/navigation",
+              "commands/reading",
+              "commands/inspection",
+              "commands/interaction",
+              "commands/visual",
+              "commands/tabs",
+              "commands/server"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Slash Commands",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "commands/plan-ceo-review",
+              "commands/plan-eng-review",
+              "commands/review",
+              "commands/ship",
+              "commands/browse",
+              "commands/qa",
+              "commands/setup-browser-cookies",
+              "commands/retro"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Additional Info",
+            "pages": [
+              "contributing",
+              "changelog",
+              "faq"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

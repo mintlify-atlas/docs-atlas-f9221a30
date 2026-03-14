@@ -1,0 +1,310 @@
+---
+title: Interaction Commands
+description: Commands for interacting with page elements, forms, and browser state
+---
+
+Interaction commands allow you to simulate user actions like clicking, typing, filling forms, and modifying browser state. These are write commands that change page or browser state.
+
+## Element Interaction
+
+<ParamField path="click" type="command">
+  Click an element
+  
+  **Usage:** `click <sel>`
+  
+  **Description:** Clicks the specified element. Accepts CSS selectors or @ref notation.
+  
+  **Examples:**
+  ```bash
+  click button.submit
+  click #login-btn
+  click a[href="/next"]
+  click @e123
+  ```
+</ParamField>
+
+<ParamField path="fill" type="command">
+  Fill an input field
+  
+  **Usage:** `fill <sel> <val>`
+  
+  **Description:** Fills the specified input field with the given value. Clears existing content first.
+  
+  **Examples:**
+  ```bash
+  fill input[name="email"] user@example.com
+  fill #password secret123
+  fill textarea[name="message"] "Hello world"
+  fill @e123 "John Doe"
+  ```
+</ParamField>
+
+<ParamField path="select" type="command">
+  Select dropdown option
+  
+  **Usage:** `select <sel> <val>`
+  
+  **Description:** Selects a dropdown option by value, label, or visible text.
+  
+  **Examples:**
+  ```bash
+  select select[name="country"] US
+  select #size-selector large
+  select .color-picker "Blue"
+  ```
+</ParamField>
+
+<ParamField path="hover" type="command">
+  Hover over an element
+  
+  **Usage:** `hover <sel>`
+  
+  **Description:** Moves the mouse over the specified element, triggering hover effects.
+  
+  **Examples:**
+  ```bash
+  hover .dropdown-trigger
+  hover #tooltip-source
+  hover @e123
+  ```
+</ParamField>
+
+<ParamField path="type" type="command">
+  Type into the focused element
+  
+  **Usage:** `type <text>`
+  
+  **Description:** Types text into the currently focused element without clearing existing content.
+  
+  **Examples:**
+  ```bash
+  click input[name="search"]
+  type "hello world"
+  ```
+</ParamField>
+
+<ParamField path="press" type="command">
+  Press keyboard keys
+  
+  **Usage:** `press <key>`
+  
+  **Description:** Presses a keyboard key or key combination. Supports Enter, Tab, Escape, Arrow keys, Backspace, Delete, Home, End, PageUp, PageDown, and modifiers like Shift+Enter.
+  
+  **Examples:**
+  ```bash
+  press Enter
+  press Tab
+  press Escape
+  press ArrowDown
+  press Shift+Enter
+  press Backspace
+  ```
+</ParamField>
+
+<ParamField path="scroll" type="command">
+  Scroll to element or bottom
+  
+  **Usage:** `scroll [sel]`
+  
+  **Description:** Scrolls an element into view, or scrolls to the page bottom if no selector is provided.
+  
+  **Examples:**
+  ```bash
+  scroll
+  scroll #footer
+  scroll .load-more-btn
+  scroll @e123
+  ```
+</ParamField>
+
+<ParamField path="wait" type="command">
+  Wait for element or page state
+  
+  **Usage:** `wait <sel|--networkidle|--load>`
+  
+  **Description:** Waits for an element to appear, network to be idle, or page to finish loading. Default timeout is 15 seconds.
+  
+  **Examples:**
+  ```bash
+  wait .modal
+  wait --networkidle
+  wait --load
+  wait button.submit
+  ```
+</ParamField>
+
+<ParamField path="upload" type="command">
+  Upload files
+  
+  **Usage:** `upload <sel> <file> [file2...]`
+  
+  **Description:** Uploads one or more files to a file input element.
+  
+  **Examples:**
+  ```bash
+  upload input[type="file"] /tmp/document.pdf
+  upload #avatar-upload /tmp/photo.jpg
+  upload .multi-upload /tmp/file1.txt /tmp/file2.txt
+  ```
+</ParamField>
+
+## Browser State
+
+<ParamField path="viewport" type="command">
+  Set viewport size
+  
+  **Usage:** `viewport <WxH>`
+  
+  **Description:** Sets the browser viewport to the specified width and height.
+  
+  **Examples:**
+  ```bash
+  viewport 1920x1080
+  viewport 375x812
+  viewport 768x1024
+  ```
+</ParamField>
+
+<ParamField path="cookie" type="command">
+  Set a cookie
+  
+  **Usage:** `cookie <name>=<value>`
+  
+  **Description:** Sets a cookie on the current page's domain.
+  
+  **Examples:**
+  ```bash
+  cookie session=abc123
+  cookie theme=dark
+  cookie user_id=12345
+  ```
+</ParamField>
+
+<ParamField path="cookie-import" type="command">
+  Import cookies from JSON file
+  
+  **Usage:** `cookie-import <json>`
+  
+  **Description:** Imports cookies from a JSON file containing an array of cookie objects.
+  
+  **Examples:**
+  ```bash
+  cookie-import /tmp/cookies.json
+  cookie-import ./auth-cookies.json
+  ```
+</ParamField>
+
+<ParamField path="cookie-import-browser" type="command">
+  Import cookies from browser
+  
+  **Usage:** `cookie-import-browser [browser] [--domain d]`
+  
+  **Description:** Imports cookies from Comet, Chrome, Arc, Brave, or Edge. Opens a picker if no browser is specified, or use --domain for direct import.
+  
+  **Examples:**
+  ```bash
+  cookie-import-browser
+  cookie-import-browser chrome --domain github.com
+  cookie-import-browser arc --domain example.com
+  ```
+</ParamField>
+
+<ParamField path="header" type="command">
+  Set custom request header
+  
+  **Usage:** `header <name>:<value>`
+  
+  **Description:** Sets a custom HTTP request header. Sensitive values are automatically redacted from logs.
+  
+  **Examples:**
+  ```bash
+  header Authorization:Bearer token123
+  header X-API-Key:secret
+  header Accept-Language:en-US
+  ```
+</ParamField>
+
+<ParamField path="useragent" type="command">
+  Set user agent
+  
+  **Usage:** `useragent <string>`
+  
+  **Description:** Sets the browser user agent string.
+  
+  **Examples:**
+  ```bash
+  useragent "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"
+  useragent "Custom Bot 1.0"
+  ```
+</ParamField>
+
+## Dialog Handling
+
+<ParamField path="dialog-accept" type="command">
+  Auto-accept dialogs
+  
+  **Usage:** `dialog-accept [text]`
+  
+  **Description:** Automatically accepts the next alert, confirm, or prompt dialog. For prompts, you can optionally provide text to send as the response.
+  
+  **Examples:**
+  ```bash
+  dialog-accept
+  dialog-accept "John Doe"
+  ```
+</ParamField>
+
+<ParamField path="dialog-dismiss" type="command">
+  Auto-dismiss dialogs
+  
+  **Description:** Automatically dismisses the next dialog (alert, confirm, or prompt).
+  
+  **Examples:**
+  ```bash
+  dialog-dismiss
+  ```
+</ParamField>
+
+## Common Patterns
+
+### Fill and submit a form
+```bash
+fill input[name="email"] user@example.com
+fill input[name="password"] secret123
+click button[type="submit"]
+wait --networkidle
+```
+
+### Navigate dropdown menus
+```bash
+hover .dropdown-trigger
+wait .dropdown-menu
+click .dropdown-menu a[href="/profile"]
+```
+
+### Handle file uploads
+```bash
+upload input[type="file"] /tmp/document.pdf
+click button.upload-submit
+wait .upload-success
+```
+
+### Test responsive design
+```bash
+viewport 375x812
+screenshot mobile.png
+viewport 1920x1080
+screenshot desktop.png
+```
+
+### Import authentication cookies
+```bash
+cookie-import-browser chrome --domain github.com
+goto https://github.com
+```
+
+### Handle confirmation dialogs
+```bash
+dialog-accept
+click button.delete
+```

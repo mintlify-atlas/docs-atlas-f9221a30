@@ -1,0 +1,307 @@
+---
+title: /ship
+description: Release machine mode - sync main, run tests, push, open PR in one command
+---
+
+**This is your release machine mode.** Once you have decided what to build, nailed the technical plan, and run a serious review, you do not want more talking. You want execution.
+
+`/ship` is for the final mile. It is for a ready branch, not for deciding what to build.
+
+This is where the model should stop behaving like a brainstorm partner and start behaving like a disciplined release engineer.
+
+## What It Does
+
+From start to PR URL in one command:
+
+1. **Sync with main** - Fetch and merge `origin/main` into the feature branch
+2. **Run tests** - Both Rails and Vitest test suites in parallel
+3. **Run evals** (if prompt files changed) - LLM-as-judge tests at full tier
+4. **Pre-landing review** - Structural audit using the review checklist
+5. **Address Greptile comments** (if PR exists) - Triage and fix valid issues
+6. **Version bump** - Auto-decide MICRO/PATCH, ask for MINOR/MAJOR
+7. **CHANGELOG** - Auto-generate from commits and diff
+8. **Commit** - Bisectable chunks with proper ordering
+9. **Push** - With upstream tracking
+10. **Create PR** - With summary, review findings, eval results, Greptile status
+
+**Output:** The PR URL. That's what you see at the end.
+
+## Example Workflow from README
+
+```
+You:   /ship
+
+Claude: [Syncs main, runs tests, pre-landing review...]
+
+        Pre-Landing Review: 1 issue (1 critical)
+        + 3 Greptile comments (1 valid, 1 fixed, 1 FP)
+
+        CRITICAL█ Race condition in payment_service.rb:47
+        Recommend: DB-level advisory lock
+
+        [GREPTILE - VALID] Same race condition caught by Greptile
+
+        A) Fix it now (recommended)
+        B) Acknowledge and ship anyway
+        C) False positive
+
+You:   A
+
+Claude: Fixing... Applied advisory lock. Committed: fix: address
+        Greptile review — advisory lock on concurrent charges
+
+        Re-running tests after fix...
+        All tests pass.
+
+        Version bump: 0.19.1.0 → 0.19.2.0 (PATCH)
+        CHANGELOG updated.
+        Committed: chore: bump version and changelog (v0.19.2.0)
+        Pushed to origin/feature-branch
+
+        PR: https://github.com/you/app/pull/42
+```
+
+**The goal:** User says `/ship`, next thing they see is the review + PR URL.
+
+## Fully Automated
+
+This is a **non-interactive, fully automated** workflow. Do NOT ask for confirmation at any step. The user said `/ship` which means DO IT.
+
+**Only stop for:**
+- On `main` branch (abort)
+- Merge conflicts that can't be auto-resolved
+- Test failures
+- Pre-landing review finds CRITICAL issues and user chooses to fix (not acknowledge or skip)
+- MINOR or MAJOR version bump needed (ask)
+- Greptile review comments that need user decision
+
+**Never stop for:**
+- Uncommitted changes (always include them)
+- Version bump choice (auto-pick MICRO or PATCH)
+- CHANGELOG content (auto-generate from diff)
+- Commit message approval (auto-commit)
+- Multi-file changesets (auto-split into bisectable commits)
+
+## Version Bumping
+
+Uses a 4-digit format from the `VERSION` file: `MAJOR.MINOR.PATCH.MICRO`
+
+Auto-decides based on lines changed:
+
+- **MICRO** (4th digit): < 50 lines changed, trivial tweaks, typos, config
+- **PATCH** (3rd digit): 50+ lines changed, bug fixes, small-medium features
+- **MINOR** (2nd digit): **ASK the user** — only for major features or significant architectural changes
+- **MAJOR** (1st digit): **ASK the user** — only for milestones or breaking changes
+
+Bumping a digit resets all digits to its right to 0.
+
+Example: `0.19.1.0` + PATCH → `0.19.2.0`
+
+## CHANGELOG Auto-Generation
+
+Generates the entry from **ALL commits on the branch** (not just recent ones):
+
+- Uses `git log main..HEAD --oneline` to see every commit being shipped
+- Uses `git diff main...HEAD` to see the full diff against main
+- Categorizes changes into:
+  - `### Added` — new features
+  - `### Changed` — changes to existing functionality
+  - `### Fixed` — bug fixes
+  - `### Removed` — removed features
+- Writes concise, descriptive bullet points
+- Inserts after the file header (line 5), dated today
+- Format: `## [X.Y.Z.W] - YYYY-MM-DD`
+
+**Does NOT ask the user to describe changes.** Infers from the diff and commit history.
+
+## Bisectable Commits
+
+**Goal:** Create small, logical commits that work well with `git bisect` and help LLMs understand what changed.
+
+Each commit should represent **one coherent change** — not one file, but one logical unit.
+
+**Commit ordering** (earlier commits first):
+
+1. **Infrastructure:** migrations, config changes, route additions
+2. **Models & services:** new models, services, concerns (with their tests)
+3. **Controllers & views:** controllers, views, JS/React components (with their tests)
+4. **VERSION + CHANGELOG:** always in the final commit
+
+**Rules for splitting:**
+
+- A model and its test file go in the same commit
+- A service and its test file go in the same commit
+- A controller, its views, and its test go in the same commit
+- Migrations are their own commit (or grouped with the model they support)
+- Config/route changes can group with the feature they enable
+- If the total diff is small (< 50 lines across < 4 files), a single commit is fine
+
+**Each commit must be independently valid** — no broken imports, no references to code that doesn't exist yet.
+
+Only the **final commit** (VERSION + CHANGELOG) gets the version tag and co-author trailer:
+
+```bash
+chore: bump version and changelog (vX.Y.Z.W)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+```
+
+## Eval Suites (Conditional)
+
+Evals are mandatory when prompt-related files change. Skipped entirely if no prompt files are in the diff.
+
+**Triggers eval when diff touches:**
+- `app/services/*_prompt_builder.rb`
+- `app/services/*_generation_service.rb`, `*_writer_service.rb`, `*_designer_service.rb`
+- `app/services/*_evaluator.rb`, `*_scorer.rb`, `*_classifier_service.rb`, `*_analyzer.rb`
+- `app/services/concerns/*voice*.rb`, `*writing*.rb`, `*prompt*.rb`, `*token*.rb`
+- `app/services/chat_tools/*.rb`, `app/services/x_thread_tools/*.rb`
+- `config/system_prompts/*.txt`
+- `test/evals/**/*`
+
+**Always uses `EVAL_JUDGE_TIER=full`** (Sonnet structural + Opus persona judges) for pre-merge gate.
+
+**Tier reference:**
+
+| Tier | When | Speed (cached) | Cost |
+|------|------|----------------|------|
+| `fast` (Haiku) | Dev iteration, smoke tests | ~5s (14x faster) | ~$0.07/run |
+| `standard` (Sonnet) | Default dev | ~17s (4x faster) | ~$0.37/run |
+| `full` (Opus persona) | **`/ship` and pre-merge** | ~72s (baseline) | ~$1.27/run |
+
+If any eval fails, **STOP**. Do not proceed.
+
+## Greptile Integration
+
+If a PR already exists, `/ship` reads Greptile comments and triages them:
+
+**Includes summary:** `+ N Greptile comments (X valid, Y fixed, Z FP)`
+
+**For each classified comment:**
+
+- **VALID & ACTIONABLE:** `AskUserQuestion` with recommended fix. If user chooses A (fix), applies fix, commits, replies to Greptile, saves to history.
+- **VALID BUT ALREADY FIXED:** Auto-reply acknowledging the catch. No question needed.
+- **FALSE POSITIVE:** `AskUserQuestion` to confirm. If user confirms, posts reply explaining why it's wrong, saves to history.
+- **SUPPRESSED:** Skip silently — known false positives.
+
+**After all comments resolved:** If any fixes were applied, re-runs tests before continuing.
+
+## Pre-Landing Review
+
+Runs the same review as `/review`:
+
+1. Reads `.claude/skills/review/checklist.md`
+2. Runs `git diff origin/main` to get the full diff
+3. Applies checklist in two passes: CRITICAL, then INFORMATIONAL
+4. Always outputs ALL findings
+
+**If CRITICAL issues found:** For EACH critical issue, `AskUserQuestion` with:
+- The problem
+- Your recommended fix
+- Options: A) Fix it now, B) Acknowledge and ship anyway, C) False positive
+
+If user chooses A on any issue, applies fixes, commits them, then **STOP** and tells user to run `/ship` again to re-test with fixes applied.
+
+If user chooses only B (acknowledge) or C (false positive), continues to version bump.
+
+**If only non-critical issues found or no issues:** Continue. Issues included in PR body.
+
+## PR Body Format
+
+```markdown
+## Summary
+<bullet points from CHANGELOG>
+
+## Pre-Landing Review
+<findings from review, or "No issues found.">
+
+## Eval Results
+<If evals ran: suite names, pass/fail counts, cost dashboard summary>
+<If skipped: "No prompt-related files changed — evals skipped.">
+
+## Greptile Review
+<If Greptile comments found: bullet list with [FIXED] / [FALSE POSITIVE] /
+[ALREADY FIXED] tag + one-line summary per comment>
+<If no Greptile comments: "No Greptile comments.">
+<If no PR existed during triage: omit this section entirely>
+
+## Test plan
+- [x] All Rails tests pass (N runs, 0 failures)
+- [x] All Vitest tests pass (N tests)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+```
+
+## Important Rules
+
+- **Never skip tests.** If tests fail, stop.
+- **Never skip the pre-landing review.** If checklist.md is unreadable, stop.
+- **Never force push.** Use regular `git push` only.
+- **Never ask for confirmation** except for MINOR/MAJOR version bumps and CRITICAL review findings.
+- **Always use the 4-digit version format** from the VERSION file.
+- **Date format in CHANGELOG:** `YYYY-MM-DD`
+- **Split commits for bisectability** — each commit = one logical change.
+
+## When to Use It
+
+Use `/ship` when:
+
+- Your branch is ready to land
+- You want to go from "code done" to "PR open" in one command
+- You've already reviewed the code (or are okay with the automated review)
+
+**Do not use it when:**
+- You're on `main` (it will abort)
+- Tests are failing (fix them first)
+- You want to review interactively before shipping (use `/review` first)
+
+## Example Session
+
+```
+You:   /ship
+
+Claude: Pre-flight check...
+        On branch: feature/smart-listing-flow
+        12 files changed, 3 routes affected
+
+        Merging origin/main... up to date.
+
+        Running tests in parallel...
+        Rails: 142 runs, 0 failures, 0 errors
+        Vitest: 89 tests passed
+
+        No prompt files changed — skipping evals.
+
+        Pre-Landing Review: No issues found.
+
+        Version bump: 0.19.1.0 → 0.19.2.0 (PATCH)
+
+        CHANGELOG updated with 3 commits:
+        - feat: add photo upload for listings
+        - feat: auto-identify product from uploaded photo
+        - feat: draft listing title and description from product data
+
+        Committing in 3 chunks:
+        1. feat: add photo upload and classification service
+        2. feat: add enrichment and draft generation services
+        3. chore: bump version and changelog (v0.19.2.0)
+
+        Pushed to origin/feature/smart-listing-flow
+
+        Creating PR...
+
+        PR: https://github.com/you/app/pull/42
+```
+
+## Next Steps
+
+After `/ship`:
+
+1. Review the PR on GitHub
+2. Use `/qa` to verify the feature works end-to-end
+3. Merge when ready
+4. Use `/retro` at end of week to analyze what shipped
+
+<Card title="QA" icon="clipboard-check" href="/skills/qa">
+  Systematic QA testing on your branch or staging
+</Card>

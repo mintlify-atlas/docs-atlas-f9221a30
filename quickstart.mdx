@@ -1,80 +1,233 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Learn the complete gstack workflow with a real example"
 ---
 
-## Get started in three steps
+## One feature, five modes
 
-Get your documentation site running locally and make your first customization.
+This guide shows you how to use gstack's workflow skills together. You'll see how to progress from initial idea through planning, implementation, review, shipping, and QA — each with the right cognitive mode.
 
-### Step 1: Set up your local environment
+## The scenario
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+You're building a listing app and want to add seller photo upload. Sellers should be able to upload a photo of their item and create a listing from it.
 
-### Step 2: Deploy your changes
+## Step 1: CEO mode — Find the 10-star product
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+Start by asking: are we building the right thing?
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+```
+You: [enter plan mode, describe the feature]
+     I want to add seller photo upload to the listing app. Sellers
+     should be able to upload a photo of their item and we create
+     the listing from it.
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+You: /plan-ceo-review
+```
 
-### Step 3: Go live
+**Claude responds:**
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```
+Claude: "Photo upload" is not the feature. The real job is helping sellers
+        create listings that actually sell. Here's what the 10-star version
+        looks like: auto-identify the product from the photo, pull specs and
+        pricing comps from the web, draft the title and description, suggest
+        the best hero image...
+```
+
+<Note>
+`/plan-ceo-review` rethinks the problem from the user's point of view. It doesn't implement the obvious ticket — it finds the product that feels inevitable and delightful.
+</Note>
+
+## Step 2: Engineering manager mode — Lock in the architecture
+
+Now that the product direction is right, get technical rigor:
+
+```
+You: /plan-eng-review
+```
+
+**Claude responds:**
+
+```
+Claude: [Architecture diagram, state machine for upload → classify → enrich
+        → draft pipeline, async job boundaries, failure modes, test matrix]
+```
+
+This produces:
+- Architecture diagrams
+- Data flow and state transitions
+- Failure modes and edge cases
+- Test coverage matrix
+
+<Tip>
+Diagrams force hidden assumptions into the open. They make hand-wavy planning much harder.
+</Tip>
+
+## Step 3: Implement the plan
+
+Exit plan mode and build the feature. Use Claude Code normally to implement the smart listing flow:
+
+- Photo upload endpoint
+- Product identification from image
+- Web scraping for specs and pricing
+- Draft generation
+- Hero image selection
+
+## Step 4: Paranoid review mode — Find what breaks in production
+
+Tests are green, but that doesn't mean the branch is safe:
+
+```
+You: /review
+```
+
+**Claude responds:**
+
+```
+Claude: Race condition: two tabs can overwrite cover-photo selection.
+        Trust boundary: pulling web data into draft generation creates
+        a prompt injection vector. Missing: orphan cleanup for failed uploads.
+```
+
+`/review` looks for bugs that pass CI but blow up in production:
+- N+1 queries
+- Race conditions
+- Trust boundaries
+- Missing cleanup
+- Bad retry logic
+
+<Warning>
+Don't skip review. These are the bugs that wake you up at 3am.
+</Warning>
+
+## Step 5: Fix the issues
+
+Address the review findings:
+
+```
+You: (fix the race condition, add prompt sanitization, implement orphan cleanup)
+```
+
+## Step 6: Release machine mode — Ship it
+
+Once the branch is ready, stop talking and start executing:
+
+```
+You: /ship
+```
+
+**Claude responds:**
+
+```
+Claude: [Syncs main, runs tests, pushes branch, opens PR — 6 tool calls, done]
+```
+
+The `/ship` skill handles:
+1. Sync with main
+2. Run tests
+3. Pre-landing review
+4. Version bump (if configured)
+5. CHANGELOG update
+6. Push branch
+7. Create or update PR
+
+<Note>
+`/ship` is for a ready branch, not for deciding what to build. Use it after planning and review are done.
+</Note>
+
+## Step 7: QA mode — Test the actual UI
+
+Give the agent eyes to verify the feature works:
+
+```
+You: /qa
+```
+
+**Claude responds:**
+
+```
+Claude: Analyzing branch diff... 8 files changed, 3 routes affected.
+        [Tests /listings/new, /listings/:id, /api/listings against localhost:3000]
+        All 3 routes working. Upload + enrichment flow passes end to end.
+```
+
+The `/qa` skill:
+- Analyzes your git diff
+- Identifies affected pages
+- Spins up the browser
+- Tests each route
+- Takes screenshots
+- Checks console errors
+
+## Step 8: Test on staging (optional)
+
+Import cookies from your real browser to test authenticated pages:
+
+```
+You: /setup-browser-cookies staging.myapp.com
+
+Claude: Imported 8 cookies for staging.myapp.com from Chrome.
+
+You: /qa https://staging.myapp.com --quick
+
+Claude: [Smoke test: homepage + 5 pages, 30 seconds]
+        Health Score: 91/100. No critical issues. 1 medium: mobile nav overlap.
+```
+
+The `--quick` flag runs a 30-second smoke test instead of full exploration.
+
+## Complete workflow summary
+
+<Steps>
+  <Step title="CEO mode: /plan-ceo-review">
+    Rethink the problem. Find the 10-star product hiding inside the request.
+  </Step>
+  <Step title="Eng manager mode: /plan-eng-review">
+    Lock in architecture, diagrams, edge cases, and test coverage.
+  </Step>
+  <Step title="Implement">
+    Build the feature using Claude Code normally.
+  </Step>
+  <Step title="Paranoid review: /review">
+    Find bugs that pass CI but break production.
+  </Step>
+  <Step title="Fix issues">
+    Address review findings.
+  </Step>
+  <Step title="Release machine: /ship">
+    Sync, test, push, open PR — fully automated.
+  </Step>
+  <Step title="QA mode: /qa">
+    Test the actual UI with diff-aware analysis.
+  </Step>
+  <Step title="Test staging (optional)">
+    Import cookies and test authenticated pages.
+  </Step>
+</Steps>
+
+## What makes this powerful
+
+1. **Explicit cognitive gears** — You tell the model what kind of brain to use: founder taste, engineering rigor, paranoid review, or fast execution.
+
+2. **Each mode is opinionated** — `/plan-ceo-review` asks "what's the 10-star product?" not "how do I add this feature?" That's a very different kind of power.
+
+3. **Modes compose** — Plan → implement → review → ship → QA. Each step builds on the last.
+
+4. **The agent gets eyes** — `/browse` and `/qa` let Claude see your app, not just write code. QA stops being manual.
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Workflow Skills" icon="layer-group" href="/skills/overview">
+    Deep dive into each skill's mode and capabilities
+  </Card>
+  <Card title="Browser Automation" icon="browser" href="/browser/commands">
+    Learn all 40+ browser commands
+  </Card>
+  <Card title="Multi-workspace Setup" icon="layer-group" href="/guides/multi-workspace-setup">
+    Run 10 sessions in parallel with Conductor
+  </Card>
+  <Card title="Greptile Integration" icon="robot" href="/guides/greptile-integration">
+    Automatic PR review with triage
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,96 @@
+---
+title: Navigation Commands
+description: Commands for navigating web pages and managing browser history
+---
+
+Navigation commands control page navigation and URL management. These are write commands that modify browser state.
+
+## Commands
+
+<ParamField path="goto" type="command">
+  Navigate to a URL
+  
+  **Usage:** `goto <url>`
+  
+  **Description:** Loads the specified URL in the current tab. Accepts both absolute URLs and relative paths.
+  
+  **Examples:**
+  ```bash
+  goto https://example.com
+  goto https://github.com/search?q=browser
+  goto http://localhost:3000
+  ```
+</ParamField>
+
+<ParamField path="back" type="command">
+  Go back in browser history
+  
+  **Description:** Navigates to the previous page in the browser's history stack, equivalent to clicking the back button.
+  
+  **Examples:**
+  ```bash
+  back
+  ```
+</ParamField>
+
+<ParamField path="forward" type="command">
+  Go forward in browser history
+  
+  **Description:** Navigates to the next page in the browser's history stack, equivalent to clicking the forward button.
+  
+  **Examples:**
+  ```bash
+  forward
+  ```
+</ParamField>
+
+<ParamField path="reload" type="command">
+  Reload the current page
+  
+  **Description:** Refreshes the current page, equivalent to pressing F5 or clicking the reload button.
+  
+  **Examples:**
+  ```bash
+  reload
+  ```
+</ParamField>
+
+<ParamField path="url" type="command">
+  Print the current URL
+  
+  **Description:** Returns the current page URL. Useful for confirming navigation or extracting the final URL after redirects.
+  
+  **Examples:**
+  ```bash
+  url
+  ```
+  
+  **Sample output:**
+  ```
+  https://example.com/page
+  ```
+</ParamField>
+
+## Common Patterns
+
+### Navigate and verify
+```bash
+goto https://example.com
+url
+```
+
+### Navigate through history
+```bash
+goto https://example.com/page1
+goto https://example.com/page2
+back
+url  # Shows page1
+forward
+url  # Shows page2
+```
+
+### Handle redirects
+```bash
+goto https://short.link/abc
+url  # Shows final destination URL
+```

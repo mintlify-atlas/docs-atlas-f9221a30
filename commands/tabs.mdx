@@ -1,0 +1,167 @@
+---
+title: Tab Management Commands
+description: Commands for managing multiple browser tabs
+---
+
+Tab management commands allow you to work with multiple browser tabs, switch between them, and coordinate multi-page workflows.
+
+## Commands
+
+<ParamField path="tabs" type="command">
+  List all open tabs
+  
+  **Description:** Returns a list of all open tabs with their IDs and URLs. The active tab is marked.
+  
+  **Examples:**
+  ```bash
+  tabs
+  ```
+  
+  **Sample output:**
+  ```
+  * [0] https://example.com
+    [1] https://github.com
+    [2] https://google.com
+  ```
+  
+  The asterisk (*) indicates the currently active tab.
+</ParamField>
+
+<ParamField path="tab" type="command">
+  Switch to a specific tab
+  
+  **Usage:** `tab <id>`
+  
+  **Description:** Switches to the tab with the specified ID. Tab IDs are shown in the output of the `tabs` command.
+  
+  **Examples:**
+  ```bash
+  tab 0
+  tab 1
+  tab 2
+  ```
+</ParamField>
+
+<ParamField path="newtab" type="command">
+  Open a new tab
+  
+  **Usage:** `newtab [url]`
+  
+  **Description:** Opens a new browser tab. If a URL is provided, navigates to that URL. The new tab becomes the active tab.
+  
+  **Examples:**
+  ```bash
+  newtab
+  newtab https://example.com
+  newtab https://github.com/search?q=browser
+  ```
+</ParamField>
+
+<ParamField path="closetab" type="command">
+  Close a tab
+  
+  **Usage:** `closetab [id]`
+  
+  **Description:** Closes the specified tab by ID. If no ID is provided, closes the current tab.
+  
+  **Examples:**
+  ```bash
+  closetab
+  closetab 1
+  closetab 2
+  ```
+</ParamField>
+
+## Common Patterns
+
+### Open multiple pages
+```bash
+newtab https://example.com
+newtab https://github.com
+newtab https://google.com
+tabs
+```
+
+### Switch between tabs
+```bash
+tabs
+tab 0
+url
+tab 1
+url
+```
+
+### Work with multiple pages
+```bash
+# Open first page and extract data
+newtab https://example.com/page1
+text > page1.txt
+
+# Open second page and extract data
+newtab https://example.com/page2
+text > page2.txt
+
+# Switch back to first tab
+tab 0
+screenshot page1.png
+```
+
+### Clean up tabs
+```bash
+tabs
+closetab 1
+closetab 2
+tabs
+```
+
+### Compare pages across tabs
+```bash
+# Open pages in separate tabs
+newtab https://staging.example.com
+newtab https://prod.example.com
+
+# Check staging
+tab 0
+text > staging.txt
+
+# Check production
+tab 1
+text > prod.txt
+```
+
+### Multi-page workflow
+```bash
+# Login page
+newtab https://example.com/login
+fill input[name="email"] user@example.com
+fill input[name="password"] secret
+click button[type="submit"]
+wait --networkidle
+
+# Dashboard in new tab
+newtab https://example.com/dashboard
+screenshot dashboard.png
+
+# Settings in new tab
+newtab https://example.com/settings
+screenshot settings.png
+
+# Review all tabs
+tabs
+```
+
+### Parallel data collection
+```bash
+# Open multiple product pages
+newtab https://shop.example.com/product/1
+newtab https://shop.example.com/product/2
+newtab https://shop.example.com/product/3
+
+# Collect data from each
+tab 0
+js document.querySelector('.price').textContent
+tab 1
+js document.querySelector('.price').textContent
+tab 2
+js document.querySelector('.price').textContent
+```

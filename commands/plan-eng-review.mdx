@@ -1,0 +1,241 @@
+---
+title: "/plan-eng-review"
+description: "Engineering manager-mode plan review to lock in execution details"
+---
+
+## Overview
+
+The `/plan-eng-review` command performs a thorough engineering review of your implementation plan. It locks in architecture, data flow, edge cases, test coverage, and performance before you write code.
+
+## When to use
+
+Use `/plan-eng-review` when:
+- You have an implementation plan ready for technical review
+- You want to catch issues before coding starts
+- You need architecture and test coverage validation
+- Scope is already decided (not challenging premises)
+
+<Note>
+  This command reviews plans only. It does **not** make code changes or start implementation.
+</Note>
+
+## Syntax
+
+```bash
+/plan-eng-review
+```
+
+No arguments required. Reads your plan from codebase context.
+
+## Review modes
+
+At Step 0, you choose:
+
+### SCOPE REDUCTION
+The plan is overbuilt. Propose a minimal version, then review that.
+
+### BIG CHANGE
+Work through interactively, one section at a time (Architecture → Code Quality → Tests → Performance). At most 8 top issues per section.
+
+### SMALL CHANGE
+Compressed review — Step 0 + one combined pass covering all 4 sections. Single most important issue per section. One AskUserQuestion round at the end.
+
+<Warning>
+  **Critical:** If you don't select SCOPE REDUCTION, the review respects that decision fully. It won't continue lobbying for a smaller plan.
+</Warning>
+
+## What it produces
+
+The review covers 4 sections:
+
+### 1. Architecture review
+- Overall system design and component boundaries
+- Dependency graph and coupling concerns
+- Data flow patterns and bottlenecks
+- Scaling characteristics and single points of failure
+- Security architecture (auth, data access, API boundaries)
+- ASCII diagrams for key flows
+- One realistic production failure scenario per new codepath
+
+### 2. Code quality review
+- Code organization and module structure
+- DRY violations (flagged aggressively)
+- Error handling patterns and missing edge cases
+- Technical debt hotspots
+- Over-engineered or under-engineered areas
+- Stale ASCII diagrams in touched files
+
+### 3. Test review
+- **Complete diagram** of:
+  - New UX flows
+  - New data flows
+  - New codepaths
+  - New branching/outcomes
+- For each new item: which test covers it? Gaps?
+- LLM/prompt changes: which eval suites must run?
+
+### 4. Performance review
+- N+1 queries and database access patterns
+- Memory usage concerns
+- Caching opportunities
+- Slow or high-complexity code paths
+
+### Required outputs
+
+- **"NOT in scope" section** — Work considered and deferred
+- **"What already exists" section** — Existing code that solves sub-problems
+- **TODOS.md updates** — Each TODO presented as individual decision
+- **Diagrams** — Data flow, state machines, dependency graphs
+- **Failure modes** — For each new codepath: realistic failure + whether tested/handled
+- **Completion summary** — Issues found per section
+
+## Example workflow
+
+```markdown
+User: Review the plan for caching user preferences
+
+Assistant:
+## Step 0: Scope Challenge
+
+**Existing code:** UserPreference model already exists with
+has_many :settings. Plan proposes Redis cache layer.
+
+**Minimum changes:** The stated goal is "reduce dashboard load time."
+Could we achieve this by eager-loading settings (1 query instead of N)
+before adding Redis?
+
+**Complexity check:** Plan touches 6 files, adds 1 service, 1 concern.
+This is under the 8-file threshold.
+
+Choose your review mode:
+1. SCOPE REDUCTION — Start with eager-loading, defer Redis
+2. BIG CHANGE — Review the full Redis plan interactively
+3. SMALL CHANGE — Compressed review (best issues only)
+
+User: 2
+
+Assistant:
+## 1. Architecture Review
+
+Overall design: RedisCache concern wraps Redis.current, TTL=1hour.
+
+Dependency graph:
+  UserPreferencesController → PreferenceCacheService → RedisCache
+
+**Issue 1:** Cache invalidation on update.
+Current plan: after_save :clear_cache in UserPreference model.
+
+Options:
+  A) Use after_commit instead (recommended) — after_save can clear
+     cache before transaction commits, causing race condition
+  B) Keep after_save — simpler
+  C) Manual invalidation — more control
+
+We recommend A: Use after_commit. Here's why: after_save cache
+invalidation creates a race where cache clears before DB commit,
+leading to stale reads. Maps to your preference: "handle edge cases
+thoughtfully."
+
+[Review continues section by section]
+```
+
+## Test diagram format
+
+The test review produces a complete diagram:
+
+```markdown
+NEW UX FLOWS:
+  - User clicks "Save preferences" → sees success message
+
+NEW DATA FLOWS:
+  - PreferencesController#update → PreferenceCacheService#set
+  - PreferenceCacheService#get → Redis.current.get
+
+NEW CODEPATHS:
+  - Cache hit path (return cached JSON)
+  - Cache miss path (query DB, set cache, return)
+  - Cache error path (Redis down — fallback to DB)
+
+NEW BACKGROUND JOBS:
+  - None
+
+For each item:
+- Cache hit: Unit test? ✓ (test/services/preference_cache_test.rb:12)
+- Cache miss: Unit test? ✓ (test/services/preference_cache_test.rb:24)
+- Cache error: Integration test? ✗ GAP — no test for Redis timeout
+```
+
+## How it asks questions
+
+Every issue gets its own `AskUserQuestion` with:
+- **Recommendation stated first:** "We recommend B: Extract to shared concern."
+- **WHY:** One sentence mapping to your engineering preferences
+- **Lettered options:** A) ... B) ... C) ...
+- **One issue per question** (never batched, except in SMALL CHANGE mode)
+
+<Note>
+  The review stops after each section for your input. You must respond before it continues.
+</Note>
+
+## Tips for best results
+
+<AccordionGroup>
+  <Accordion title="Prepare context">
+    Works best with:
+    - Plan document (markdown or code comments)
+    - Recent git diff showing current state
+    - CLAUDE.md with project conventions
+  </Accordion>
+
+  <Accordion title="Choose SMALL CHANGE for small plans">
+    If your plan is &lt;5 files and &lt;200 LOC, choose SMALL CHANGE mode.
+    You'll get the critical issues without excessive back-and-forth.
+  </Accordion>
+
+  <Accordion title="Use diagrams in code comments">
+    The review identifies which files should get inline ASCII diagrams:
+    - Models: state transitions, data relationships
+    - Services: processing pipelines
+    - Controllers: request flow
+    - Tests: non-obvious setup
+  </Accordion>
+
+  <Accordion title="Act on test gaps">
+    The test diagram shows new code with no coverage. Write those tests
+    before implementing — they're already scoped for you.
+  </Accordion>
+</AccordionGroup>
+
+## LLM/prompt change handling
+
+If the plan touches prompt-related files (from CLAUDE.md patterns), the test review:
+1. Identifies which eval suites are affected
+2. States which cases should be added
+3. Specifies baselines to compare against
+4. Uses `AskUserQuestion` to confirm eval scope
+
+## Failure mode analysis
+
+For each new codepath, the review asks:
+1. What's one realistic production failure? (timeout, nil, race, stale data)
+2. Is there a test for it?
+3. Does error handling exist?
+4. Would the user see a clear error or silent failure?
+
+Any failure with no test AND no handling AND silent impact = **critical gap**.
+
+## Engineering preferences
+
+Calibrated to:
+- DRY is important
+- Well-tested code is non-negotiable
+- "Engineered enough" — not fragile, not over-abstracted
+- Handle edge cases thoughtfully
+- Explicit over clever
+- Minimal diff
+
+## Related commands
+
+- [`/plan-ceo-review`](/commands/plan-ceo-review) — CEO mode (challenge premises, expand scope)
+- [`/review`](/commands/review) — Pre-landing PR review
+- [`/ship`](/commands/ship) — Full ship workflow

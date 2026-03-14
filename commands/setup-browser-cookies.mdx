@@ -1,0 +1,291 @@
+---
+title: "/setup-browser-cookies"
+description: "Import browser cookies for authenticated testing"
+---
+
+## Overview
+
+The `/setup-browser-cookies` command imports authentication cookies from your local browser into the automation browser. Use it to test authenticated pages without manually logging in every time.
+
+## When to use
+
+Use `/setup-browser-cookies` before:
+- Running `/qa` on authenticated pages
+- Using `/browse` on logged-in flows
+- Testing admin panels or dashboards
+- Accessing pages behind authentication
+
+## Syntax
+
+```bash
+/setup-browser-cookies [domain]
+```
+
+**Examples:**
+```bash
+/setup-browser-cookies                    # Interactive picker
+/setup-browser-cookies myapp.com          # Import for specific domain
+/setup-browser-cookies localhost          # Local dev (includes :3000, :4000, etc.)
+```
+
+## How it works
+
+### Interactive picker (no domain specified)
+
+Shows a list of browsers with saved cookies:
+
+```markdown
+User: /setup-browser-cookies
+
+Assistant:
+Select browser to import cookies from:
+
+1. Chrome (default profile)
+2. Chrome (Profile: Work)
+3. Firefox (default profile)
+4. Safari
+5. Edge
+
+Which browser? (1-5)
+```
+
+You select a number, then choose the domain:
+
+```markdown
+User: 1
+
+Assistant:
+Found cookies for these domains in Chrome:
+
+1. github.com (last used: 2 hours ago)
+2. myapp.com (last used: today)
+3. localhost (last used: 5 minutes ago)
+4. staging.myapp.com (last used: yesterday)
+
+Which domain? (1-4 or type domain name)
+```
+
+### Direct import (domain specified)
+
+If you specify a domain, it auto-detects your default browser and imports:
+
+```markdown
+User: /setup-browser-cookies myapp.com
+
+Assistant:
+✓ Detected Chrome (default profile)
+✓ Found 12 cookies for myapp.com
+✓ Imported: session_id, auth_token, user_prefs, ...
+
+Cookies imported. You're now authenticated as: user@example.com
+```
+
+## Supported browsers
+
+| Browser | macOS | Linux | Windows |
+|---------|-------|-------|----------|
+| Chrome | ✓ | ✓ | ✓ |
+| Firefox | ✓ | ✓ | ✓ |
+| Safari | ✓ | — | — |
+| Edge | ✓ | ✓ | ✓ |
+| Brave | ✓ | ✓ | ✓ |
+
+<Note>
+  Cookie databases are read while the browser is closed. If your browser is open, the command will prompt you to close it temporarily.
+</Note>
+
+## What gets imported
+
+**Imported:**
+- Session cookies (authentication tokens)
+- Persistent cookies (auth, preferences)
+- HttpOnly cookies (secure session data)
+- Domain and subdomain cookies
+
+**Not imported:**
+- Cookies from other domains
+- Expired cookies
+- Secure cookies (if target is `http://` not `https://`)
+
+## Local development
+
+For local dev servers, specify `localhost`:
+
+```bash
+/setup-browser-cookies localhost
+```
+
+This imports cookies for:
+- `localhost`
+- `localhost:3000`
+- `localhost:4000`
+- `localhost:8080`
+- `127.0.0.1` (all ports)
+
+## Example workflow
+
+### QA testing authenticated dashboard
+
+```markdown
+User: /setup-browser-cookies myapp.com
+
+Assistant:
+✓ Imported 12 cookies for myapp.com
+✓ Authenticated as: admin@myapp.com
+
+User: /qa https://myapp.com/dashboard
+
+Assistant:
+Starting QA...
+✓ Loaded /dashboard (authenticated)
+✓ Testing navigation...
+[... QA continues ...]
+```
+
+### Browse authenticated flow
+
+```markdown
+User: /setup-browser-cookies staging.myapp.com
+
+Assistant:
+✓ Cookies imported
+
+User: /browse Go to user settings and update email preferences
+
+Assistant:
+✓ goto https://staging.myapp.com/settings
+✓ click @e5 (Email preferences)
+✓ click @e12 (Unsubscribe from marketing)
+✓ click @e20 (Save)
+✓ snapshot -D
+
+Preferences updated.
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Still showing login page after import">
+    **Possible causes:**
+    1. Cookies expired — log into your browser again, then re-import
+    2. Session tied to IP — server rejected cookies from different IP
+    3. Wrong domain — ensure you imported for the exact domain (not subdomain)
+    
+    **Solution:**
+    Log into the site in your browser, then immediately run:
+    ```bash
+    /setup-browser-cookies <domain>
+    ```
+  </Accordion>
+
+  <Accordion title="Command says browser is locked">
+    Your browser is currently running. Close it temporarily:
+    
+    1. Quit the browser completely (Cmd+Q / Alt+F4)
+    2. Run `/setup-browser-cookies`
+    3. Reopen browser after import
+    
+    Cookie databases can't be read while the browser has them locked.
+  </Accordion>
+
+  <Accordion title="No cookies found for domain">
+    You haven't logged into that domain in this browser recently.
+    
+    **Solution:**
+    1. Open the browser
+    2. Navigate to the site and log in
+    3. Close the browser
+    4. Run `/setup-browser-cookies <domain>`
+  </Accordion>
+
+  <Accordion title="Cookies import but authentication doesn't work">
+    The site may use additional auth mechanisms:
+    - CSRF tokens (need to load page first to get token)
+    - IP-based session validation (cookies tied to your IP)
+    - Device fingerprinting (browser signature mismatch)
+    
+    **Workaround:**
+    Manual login in the automation browser:
+    ```bash
+    /browse Go to myapp.com, click login, enter credentials, submit
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Security notes
+
+<Warning>
+  Imported cookies grant full access to your account in the automation browser. If you're testing on a production site, consider:
+  - Using a test account instead of your personal account
+  - Revoking sessions after testing
+  - Not sharing screenshots that might contain session tokens
+</Warning>
+
+**Cookie storage:**
+- Cookies are stored in the automation browser's profile (not saved to disk separately)
+- They persist across `/qa` and `/browse` sessions
+- They expire based on the original cookie's expiration time
+
+**To clear imported cookies:**
+```bash
+$B cookie-clear
+```
+
+## Alternative: Manual cookie import
+
+If you have cookies in a JSON file (e.g., from Postman, curl, or export):
+
+```bash
+$B cookie-import cookies.json
+```
+
+**JSON format:**
+```json
+[
+  {
+    "name": "session_id",
+    "value": "abc123...",
+    "domain": "myapp.com",
+    "path": "/",
+    "expires": 1735689600,
+    "httpOnly": true,
+    "secure": true
+  }
+]
+```
+
+## Tips for best results
+
+<AccordionGroup>
+  <Accordion title="Import right before testing">
+    Cookies can expire or become invalid. Import fresh cookies immediately
+    before running `/qa` or `/browse`.
+  </Accordion>
+
+  <Accordion title="Use test accounts for production">
+    Don't use your personal admin account for automation. Create a
+    dedicated test user with appropriate permissions.
+  </Accordion>
+
+  <Accordion title="Check session duration">
+    Some sites have short session timeouts (15 min). If your QA run
+    takes longer, you may need to re-import mid-session.
+  </Accordion>
+
+  <Accordion title="Import for all relevant domains">
+    If your app uses multiple domains (app.example.com, api.example.com),
+    import cookies for each:
+    
+    ```bash
+    /setup-browser-cookies app.example.com
+    /setup-browser-cookies api.example.com
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related commands
+
+- [`/qa`](/commands/qa) — QA testing (use cookies for auth flows)
+- [`/browse`](/commands/browse) — Browser automation (use cookies for logged-in actions)
+- Browser command: `cookie-export` — Export current session cookies
+- Browser command: `cookie-clear` — Clear all cookies

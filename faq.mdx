@@ -1,0 +1,243 @@
+---
+title: Frequently Asked Questions
+description: Common questions about gstack - what it is, how it works, and troubleshooting
+---
+
+# Frequently Asked Questions
+
+<AccordionGroup>
+  <Accordion title="What is gstack?">
+    gstack turns Claude Code from one generic assistant into a team of specialists you can summon on demand.
+
+    It provides eight opinionated workflow skills for Claude Code:
+    - `/plan-ceo-review` - Founder/CEO mode for rethinking problems and finding the 10-star product
+    - `/plan-eng-review` - Engineering manager mode for architecture, diagrams, and edge cases
+    - `/review` - Paranoid staff engineer mode for finding production bugs that pass CI
+    - `/ship` - Release engineer mode for syncing main, running tests, and opening PRs
+    - `/browse` - QA engineer mode with headless browser automation
+    - `/qa` - QA lead mode for systematic testing with diff-aware analysis
+    - `/setup-browser-cookies` - Session manager for importing real browser cookies
+    - `/retro` - Engineering manager mode for team-aware retrospectives
+
+    Instead of one mushy generic mode, gstack lets you tell the model what kind of brain to use right now — founder taste, engineering rigor, paranoid review, or fast execution.
+  </Accordion>
+
+  <Accordion title="How is gstack different from other AI coding tools?">
+    Most AI coding tools give you one generic assistant that tries to do everything at once. gstack is different:
+
+    - **Explicit cognitive modes** - Switch between founder, eng manager, paranoid reviewer, and release machine modes on demand
+    - **Opinionated workflows** - Each skill has a specific methodology, not just generic prompting
+    - **Browser automation** - The agent can actually see your app, log in, click through pages, and catch breakage
+    - **Diff-aware QA** - `/qa` analyzes your git diff and tests only what changed
+    - **Greptile integration** - Automatically triages automated PR review comments
+    - **Built for parallel execution** - Designed to work with Conductor to run 10 sessions at once
+
+    It's not a prompt pack for beginners. It's an operating system for people who ship.
+  </Accordion>
+
+  <Accordion title="Do I need Conductor to use gstack?">
+    No, gstack works perfectly fine with a single Claude Code session. Conductor is optional but transformative.
+
+    **Without Conductor:** You use gstack skills one at a time in your main Claude Code session. This is already powerful — you get all the specialized modes, browser automation, and workflows.
+
+    **With Conductor:** You can run 10 Claude Code sessions in parallel, each with its own isolated workspace and browser instance. One session runs `/qa` on staging, another does `/review` on a PR, a third implements a feature, and seven more work on other branches — all at the same time.
+
+    Each workspace gets automatic isolation: separate Chromium process, cookies, tabs, and logs in `.gstack/` per project root. No port collisions, no shared state, no configuration needed.
+
+    Learn more at [conductor.build](https://conductor.build).
+  </Accordion>
+
+  <Accordion title="Can I use gstack with other AI assistants besides Claude Code?">
+    gstack is specifically designed for Claude Code and uses its skill system (slash commands, Markdown prompts discovered from `~/.claude/skills/`).
+
+    The `/browse` binary can technically be called from any system that can execute shell commands, but the full workflow skills (`/review`, `/ship`, `/qa`, etc.) are tightly integrated with Claude Code's Agent SDK and tool calling conventions.
+
+    If you want to use these workflows with other AI assistants, you would need to adapt the skill prompts to whatever format that assistant uses.
+  </Accordion>
+
+  <Accordion title="Is it safe to import cookies from my browser?">
+    Yes, when used responsibly:
+
+    **How it works:**
+    - `/setup-browser-cookies` reads encrypted cookies from your browser's SQLite database
+    - It decrypts them using your macOS Keychain (requires your permission)
+    - Cookies are imported into the headless Playwright session only (not written to disk in plaintext)
+    - The interactive picker never displays cookie values — only domain names
+
+    **Security considerations:**
+    - Only import cookies for domains you're actively testing
+    - Don't import production authentication cookies unless you intend to test against production
+    - The headless browser session has real state — treat it like your regular browser
+    - Sessions auto-shut down after 30 minutes of idle time
+    - First import per browser triggers a macOS Keychain prompt — you control access
+
+    **Best practice:** Import cookies for staging/development environments only. For production testing, use test accounts with limited permissions.
+  </Accordion>
+
+  <Accordion title="How do I upgrade gstack?">
+    Paste this into Claude Code:
+
+    ```
+    Update gstack: run `cd ~/.claude/skills/gstack && git fetch origin && git reset --hard origin/main && ./setup`. If this project also has gstack at .claude/skills/gstack, update it too: run `for s in browse plan-ceo-review plan-eng-review review ship retro qa setup-browser-cookies; do rm -f .claude/skills/$s; done && rm -rf .claude/skills/gstack && cp -Rf ~/.claude/skills/gstack .claude/skills/gstack && rm -rf .claude/skills/gstack/.git && cd .claude/skills/gstack && ./setup`
+    ```
+
+    The `setup` script rebuilds the browser binary and re-symlinks skills. It takes a few seconds.
+
+    **What happens:**
+    1. Fetches latest from GitHub
+    2. Resets to origin/main (handles force-pushes)
+    3. Runs `./setup` which rebuilds the binary and symlinks
+    4. If you have a project-local copy, updates that too
+  </Accordion>
+
+  <Accordion title="How do I uninstall gstack?">
+    Paste this into Claude Code:
+
+    ```
+    Uninstall gstack: remove the skill symlinks by running `for s in browse plan-ceo-review plan-eng-review review ship retro qa setup-browser-cookies; do rm -f ~/.claude/skills/$s; done` then run `rm -rf ~/.claude/skills/gstack` and remove the gstack section from CLAUDE.md. If this project also has gstack at .claude/skills/gstack, remove it by running `for s in browse plan-ceo-review plan-eng-review review ship retro qa setup-browser-cookies; do rm -f .claude/skills/$s; done && rm -rf .claude/skills/gstack` and remove the gstack section from the project CLAUDE.md too.
+    ```
+
+    This removes:
+    - Skill symlinks from `~/.claude/skills/`
+    - The gstack directory
+    - Any project-local copies
+    - References in CLAUDE.md
+
+    Nothing touches your PATH or system-wide settings — everything lives in `.claude/`.
+  </Accordion>
+
+  <Accordion title="Why isn't my skill showing up in Claude Code?">
+    Run the setup script to rebuild symlinks:
+
+    ```bash
+    cd ~/.claude/skills/gstack && ./setup
+    ```
+
+    Or for project installs:
+
+    ```bash
+    cd .claude/skills/gstack && ./setup
+    ```
+
+    This creates the symlinks that Claude Code uses to discover skills. If skills still don't appear:
+
+    1. **Check that the symlinks exist:**
+       ```bash
+       ls -la ~/.claude/skills/
+       ```
+       You should see symlinks like `browse -> gstack/browse`, `review -> gstack/review`, etc.
+
+    2. **Restart Claude Code** - Sometimes it needs a restart to pick up new skills
+
+    3. **Check project-local vs global priority** - If you have both `.claude/skills/gstack/` (project) and `~/.claude/skills/gstack/` (global), the project copy takes priority. Make sure the right one is up to date.
+  </Accordion>
+
+  <Accordion title="Why does /browse fail with 'binary not found'?">
+    The browser binary needs to be compiled. Run:
+
+    ```bash
+    cd ~/.claude/skills/gstack
+    bun install
+    bun run build
+    ```
+
+    **Requirements:**
+    - [Bun](https://bun.sh/) v1.0 or later
+    - macOS or Linux (x64 or arm64)
+
+    If you don't have Bun installed:
+
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+
+    The binary compiles to `browse/dist/browse` (~58MB). First build takes about 10 seconds. The `./setup` script normally handles this automatically, but if you cloned manually or the build failed, you may need to run it explicitly.
+  </Accordion>
+
+  <Accordion title="How do I update a project-local copy of gstack?">
+    If gstack is copied into your project at `.claude/skills/gstack/`, update it by re-copying from your global install:
+
+    ```bash
+    # Remove old symlinks and vendored copy
+    for s in browse plan-ceo-review plan-eng-review review ship retro qa setup-browser-cookies; do
+      rm -f .claude/skills/$s
+    done
+    rm -rf .claude/skills/gstack
+
+    # Copy from global install
+    cp -Rf ~/.claude/skills/gstack .claude/skills/gstack
+    rm -rf .claude/skills/gstack/.git
+
+    # Rebuild binary and re-create symlinks
+    cd .claude/skills/gstack && ./setup
+    ```
+
+    **Why this works:**
+    - Project-local copies are "vendored" (no `.git` directory)
+    - Teammates just need to run `./setup` once after cloning
+    - The binary and `node_modules/` are gitignored
+    - Updates come from syncing your global install, then re-copying
+  </Accordion>
+
+  <Accordion title="What are the test tiers and when should I run them?">
+    gstack has three test tiers:
+
+    **Tier 1: Static validation (free, &lt;5s)**
+    ```bash
+    bun test
+    ```
+    - Validates SKILL.md command syntax against source code
+    - Checks for typos, removed commands, invalid flags
+    - Runs on every commit, no API keys needed
+    - Run this before every commit
+
+    **Tier 2: E2E via Agent SDK (~$0.50/run)**
+    ```bash
+    SKILL_E2E=1 bun test test/skill-e2e.test.ts
+    ```
+    - Spawns real Claude Code sessions
+    - Tests `/qa` and `/browse` end-to-end
+    - Saves transcripts on failure
+    - Run before major releases or when changing core workflows
+
+    **Tier 3: LLM-as-judge (~$0.03/run)**
+    ```bash
+    bun run test:eval
+    ```
+    - Scores generated docs on clarity/completeness/actionability
+    - Uses Claude Haiku for cost efficiency
+    - Requires `ANTHROPIC_API_KEY` in `.env`
+    - Run when changing doc generation or templates
+
+    **For contributors:** Run Tier 1 on every commit. Run Tier 2 and 3 before submitting PRs that change skills or doc generation.
+  </Accordion>
+
+  <Accordion title="Can I use gstack with my team?">
+    Yes! There are two ways to share gstack with your team:
+
+    **1. Everyone installs globally (recommended for small teams)**
+    - Each person runs the install command independently
+    - Updates are manual: everyone upgrades when they want
+    - Simple, no repo changes needed
+
+    **2. Vendor into your project (recommended for larger teams)**
+    - Copy gstack into `.claude/skills/gstack/` in your repo
+    - Commit everything except the binary and `node_modules/` (gitignored)
+    - Teammates run `cd .claude/skills/gstack && ./setup` once after cloning
+    - Updates controlled by whoever maintains the vendored copy
+    - Entire team uses the same version automatically
+
+    **Installation for approach 2:**
+    ```bash
+    # Add gstack to your project
+    cp -Rf ~/.claude/skills/gstack .claude/skills/gstack
+    rm -rf .claude/skills/gstack/.git
+    cd .claude/skills/gstack && ./setup
+    
+    # Add to CLAUDE.md
+    # Then commit .claude/skills/gstack/ (binary is gitignored)
+    ```
+
+    Your teammates just clone the repo and run `cd .claude/skills/gstack && ./setup`. The `/browse` skill automatically rebuilds the binary if it's missing.
+  </Accordion>
+</AccordionGroup>

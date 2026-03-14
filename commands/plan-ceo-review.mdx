@@ -1,0 +1,169 @@
+---
+title: "/plan-ceo-review"
+description: "CEO/founder-mode plan review for rethinking problems and finding the 10-star product"
+---
+
+## Overview
+
+The `/plan-ceo-review` command performs a deep, opinionated review of your implementation plan from a CEO/founder perspective. It challenges premises, expands scope when it creates better products, and ensures you're building something extraordinary.
+
+## When to use
+
+Use `/plan-ceo-review` when:
+- You have a plan or spec ready for review
+- You want to challenge assumptions and rethink the problem
+- You're deciding whether to go big or scale back
+- You need a rigorous review before implementation
+
+<Warning>
+  This command reviews plans only. It does **not** make code changes or start implementation.
+</Warning>
+
+## Syntax
+
+```bash
+/plan-ceo-review
+```
+
+No arguments required. The command reads your plan from the codebase context (typically in markdown files, comments, or recent discussions).
+
+## Review modes
+
+The command offers three modes at Step 0:
+
+### SCOPE EXPANSION
+Push scope up. Build the cathedral. Ask "what would make this 10x better for 2x the effort?" Propose the ambitious version, then review that.
+
+**Default for:** Greenfield features, when user says "go big" or "ambitious"
+
+### HOLD SCOPE
+The plan's scope is right. Review with maximum rigor — architecture, security, edge cases, observability, deployment. Make it bulletproof.
+
+**Default for:** Bug fixes, hotfixes, refactors
+
+### SCOPE REDUCTION
+The plan is overbuilt. Propose a minimal version that achieves the core goal. Strip to essentials.
+
+**Default for:** Plans touching >15 files unless user pushes back
+
+## What it produces
+
+The review includes 10 detailed sections:
+
+1. **Architecture Review** — System design, data flow diagrams (all 4 paths: happy, nil, empty, error), state machines, coupling concerns, scaling, security, rollback posture
+2. **Error & Rescue Map** — Every method that can fail, every exception class, rescue actions, what users see. Flags silent failures.
+3. **Security & Threat Model** — Attack surface, input validation, authorization, secrets, injection vectors, audit logging
+4. **Data Flow & Interaction Edge Cases** — Traces data through the system with adversarial thoroughness. Interaction edge cases (double-click, navigate-away, timeouts)
+5. **Code Quality Review** — DRY violations, naming, error patterns, over/under-engineering
+6. **Test Review** — Complete diagram of new UX flows, data flows, codepaths. Maps tests to each. Identifies gaps.
+7. **Performance Review** — N+1 queries, memory usage, indexes, caching, slow paths
+8. **Observability & Debuggability** — Logging, metrics, tracing, alerting, dashboards, runbooks
+9. **Deployment & Rollout** — Migration safety, feature flags, rollout order, rollback plan, deploy-time risk
+10. **Long-Term Trajectory** — Technical debt, path dependency, reversibility (1-5 scale), ecosystem fit
+
+### Required outputs
+
+- **"NOT in scope" section** — Work considered and deferred
+- **"What already exists" section** — Existing code that partially solves sub-problems
+- **Error & Rescue Registry** — Complete table of failure modes
+- **Failure Modes Registry** — Critical gaps flagged
+- **TODOS.md updates** — Presented as individual decisions
+- **Diagrams** — System architecture, data flow, state machines, error flow, deployment, rollback
+- **Completion Summary** — At-a-glance metrics of issues found
+
+## Example workflow
+
+```markdown
+User: Review the plan for the new billing integration
+
+Assistant: Running pre-review system audit...
+
+[Checks git log, diff, TODOS.md, existing architecture]
+
+Findings: Current system state shows existing Stripe integration in
+app/services/payment/. Plan proposes parallel PayPal integration.
+
+## Step 0: Nuclear Scope Challenge
+
+### Premise Challenge
+The plan assumes we need both Stripe AND PayPal. But 92% of users
+use Stripe. What if we built a payment method switcher UI instead?
+
+### Existing Code Leverage
+Stripe integration (app/services/payment/stripe_service.rb) already
+has webhook handling, retry logic, and reconciliation. The PayPal
+plan rebuilds all of this. Can we extract a shared PaymentProvider
+concern?
+
+### Mode Selection
+I recommend SCOPE REDUCTION. The plan is 18 files and 3 new services.
+Here's a minimal version...
+
+[Interactive review continues]
+```
+
+## How it asks questions
+
+Every issue gets its own `AskUserQuestion` call with:
+- 2-3 lettered options (A, B, C)
+- Your recommendation stated first
+- WHY that recommendation (mapped to your engineering preferences)
+- One issue per question (never batched)
+
+<Note>
+  The review stops after each section for your input. It never makes assumptions about which direction you want.
+</Note>
+
+## Tips for best results
+
+<AccordionGroup>
+  <Accordion title="Have context ready">
+    The command works best when you have:
+    - A plan document (markdown, comments, or discussion)
+    - Recent git context showing what's changed
+    - CLAUDE.md and TODOS.md files in your repo
+  </Accordion>
+
+  <Accordion title="Choose mode thoughtfully">
+    The mode you select in Step 0 determines the entire review posture:
+    - EXPANSION: Proposes ambitious additions
+    - HOLD: Finds every edge case and failure mode
+    - REDUCTION: Strips to bare minimum
+    
+    The review commits to your choice and doesn't drift.
+  </Accordion>
+
+  <Accordion title="Use diagrams">
+    The review produces ASCII diagrams for complex flows. These belong in:
+    - Plan documents (for team review)
+    - Code comments (for future maintainers)
+    
+    Keep diagrams updated as part of the change.
+  </Accordion>
+
+  <Accordion title="Act on critical gaps">
+    Pay special attention to:
+    - CRITICAL GAP markers (unrescued errors, silent failures)
+    - Security findings (High severity)
+    - Test gaps (new codepaths with no coverage)
+  </Accordion>
+</AccordionGroup>
+
+## Engineering preferences
+
+The review is calibrated to these defaults (from the skill):
+- DRY is important — repetition flagged aggressively
+- Well-tested code is non-negotiable
+- "Engineered enough" — not fragile, not over-abstracted
+- Handle edge cases thoughtfully
+- Explicit over clever
+- Minimal diff — fewest files touched
+- Observability is not optional
+- Security is not optional
+- Plan for partial states and rollbacks
+
+## Related commands
+
+- [`/plan-eng-review`](/commands/plan-eng-review) — Engineering manager mode (lock in execution plan)
+- [`/review`](/commands/review) — Pre-landing PR review (structural issues)
+- [`/ship`](/commands/ship) — Full ship workflow (test, review, bump, push, PR)

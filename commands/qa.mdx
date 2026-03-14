@@ -1,0 +1,349 @@
+---
+title: "/qa"
+description: "Systematic QA testing with health scores, screenshots, and repro steps"
+---
+
+## Overview
+
+The `/qa` command systematically tests web applications like a real user. It produces structured reports with health scores, screenshots, and detailed reproduction steps for every issue found.
+
+## When to use
+
+Use `/qa` when:
+- You shipped code and want to verify it works
+- You're dogfooding your own product
+- You need to find bugs before users do
+- You want a health score for a site or feature
+
+## Syntax
+
+```bash
+/qa [url] [options]
+```
+
+**Parameters:**
+- `url` — Target URL (optional if on feature branch — auto-detects local app)
+- `--quick` — 30-second smoke test (homepage + top 5 nav targets)
+- `--regression <baseline.json>` — Compare against previous run
+
+**Examples:**
+```bash
+/qa                                    # Diff-aware mode (feature branch)
+/qa https://myapp.com                  # Full mode
+/qa http://localhost:3000 --quick      # Quick smoke test
+/qa https://staging.app.com --regression .gstack/qa-reports/baseline.json
+```
+
+## Four modes
+
+### 1. Diff-aware (automatic on feature branches)
+
+**When it activates:** You run `/qa` without a URL while on a feature branch.
+
+**What it does:**
+1. Analyzes `git diff main...HEAD` to see what changed
+2. Identifies affected pages/routes from changed files
+3. Auto-detects running app (tries :3000, :4000, :8080)
+4. Tests each affected page end-to-end
+5. Reports findings scoped to branch changes
+
+**Example:**
+```markdown
+User: /qa
+
+Assistant:
+Detected feature branch: feature/new-checkout
+
+Analyzing diff...
+✓ Changed: app/controllers/checkout_controller.rb
+✓ Changed: app/views/checkout/review.html.erb
+✓ Changed: app/assets/stylesheets/checkout.css
+
+Affected routes:
+- GET /checkout/cart
+- POST /checkout/review
+- POST /checkout/complete
+
+Detecting app... found on http://localhost:3000
+
+Testing affected pages:
+✓ /checkout/cart — loads, no errors
+✓ /checkout/review — form submits correctly
+✓ /checkout/complete — confirmation shows
+
+Changes tested: 3 routes
+Issues found: 0
+Health score: 98/100
+```
+
+### 2. Full (default with URL)
+
+Systematic exploration. Visits every reachable page, documents 5-10 well-evidenced issues, produces health score. Takes 5-15 minutes.
+
+### 3. Quick (`--quick`)
+
+30-second smoke test:
+- Visit homepage
+- Top 5 navigation targets
+- Check: loads? Console errors? Broken links?
+- Produce health score
+- No detailed issue documentation
+
+### 4. Regression (`--regression <baseline>`)
+
+Runs full mode, then compares against `baseline.json`:
+- Which issues are fixed?
+- Which are new?
+- Score delta
+- Appends regression section to report
+
+## What it checks
+
+At each page:
+
+### Visual scan
+- Layout issues (overlapping, misaligned, cut-off)
+- Missing images (broken src)
+- Styling problems (no CSS, wrong colors)
+
+### Interactive elements
+- Buttons work when clicked?
+- Links go to correct destination?
+- Dropdowns open and close?
+
+### Forms
+- Empty submission (validation works?)
+- Invalid input (errors shown?)
+- Valid submission (success?)
+- Edge cases (long strings, special chars)
+
+### Navigation
+- All paths in and out
+- Back/forward buttons
+- Breadcrumbs
+
+### States
+- Empty state (no data)
+- Loading state (spinners, skeletons)
+- Error state (API fails)
+- Overflow (1000+ items)
+
+### Console
+- JavaScript errors
+- Failed network requests
+- Warnings
+
+### Responsiveness (if relevant)
+- Mobile viewport (375x812)
+- Desktop viewport (1280x720)
+
+## Health score rubric
+
+**Computed per category, then weighted average:**
+
+### Console (15% weight)
+- 0 errors → 100
+- 1-3 errors → 70
+- 4-10 errors → 40
+- 10+ errors → 10
+
+### Links (10% weight)
+- 0 broken → 100
+- Each broken → -15 (min 0)
+
+### Per-category scoring (Visual, Functional, UX, Content, Performance, Accessibility)
+
+Starts at 100. Deduct per finding:
+- Critical → -25
+- High → -15
+- Medium → -8
+- Low → -3
+
+Min 0 per category.
+
+**Weights:**
+- Console: 15%
+- Links: 10%
+- Visual: 10%
+- Functional: 20%
+- UX: 15%
+- Performance: 10%
+- Content: 5%
+- Accessibility: 15%
+
+**Final score:** `Σ (category_score × weight)`
+
+## Output structure
+
+```
+.gstack/qa-reports/
+├── qa-report-{domain}-{YYYY-MM-DD}.md    # Structured report
+├── screenshots/
+│   ├── initial.png                        # Landing page
+│   ├── issue-001-step-1.png               # Evidence
+│   ├── issue-001-result.png
+│   └── ...
+└── baseline.json                          # For regression mode
+```
+
+## Report format
+
+```markdown
+# QA Report: myapp.com (2026-03-14)
+
+## Summary
+
+Health Score: 82/100
+
+Pages tested: 12
+Issues found: 5 (1 critical, 2 high, 2 medium)
+Screenshots: 18
+Duration: 8 minutes
+Framework: Next.js
+
+## Top 3 Things to Fix
+
+1. **[CRITICAL]** Form submission fails on /checkout (timeout)
+2. **[HIGH]** Navigation menu broken on mobile viewport
+3. **[HIGH]** 5 console errors on homepage (TypeError in analytics.js)
+
+## Console Health
+
+5 unique errors across 12 pages:
+- TypeError: Cannot read 'userId' of undefined (analytics.js:42)
+- Failed to load resource: /api/profile (404)
+- ...
+
+## Issues
+
+### ISSUE-001: Form submission timeout [CRITICAL]
+
+**Page:** /checkout
+**Category:** Functional
+**Severity:** Critical
+
+**Repro:**
+1. Navigate to /checkout
+2. Fill form: name="Test", email="test@example.com"
+3. Click "Submit Order"
+4. Wait 30s → timeout, no response
+
+**Evidence:**
+- Screenshot before: issue-001-step-1.png
+- Screenshot after: issue-001-result.png
+- Console: POST /api/checkout → 504 Gateway Timeout
+
+**Expected:** Order confirmation within 5s
+**Actual:** Request times out, user sees loading spinner forever
+
+---
+
+[... more issues ...]
+
+## Regression (if --regression used)
+
+**Baseline:** 2026-03-10 (score: 76/100)
+**Current:** 2026-03-14 (score: 82/100)
+**Delta:** +6 points
+
+**Fixed issues:**
+- ISSUE-003 from baseline (broken image on /about) — now fixed
+
+**New issues:**
+- ISSUE-001 (checkout timeout) — not in baseline
+
+**Unchanged issues:**
+- Mobile nav still broken (ISSUE-002 in both runs)
+```
+
+## Authentication
+
+For authenticated pages:
+
+```bash
+/setup-browser-cookies myapp.com
+/qa https://myapp.com/dashboard
+```
+
+Or specify credentials in the command:
+```bash
+/qa https://myapp.com Sign in to admin@example.com
+```
+
+<Warning>
+  Credentials are redacted in reports. Screenshots may contain sensitive data — review before sharing.
+</Warning>
+
+## Framework-specific checks
+
+### Next.js
+- Hydration errors (`Text content did not match`)
+- `_next/data` requests (404s = broken data fetching)
+- Client-side navigation (click links, don't just `goto`)
+- CLS (Cumulative Layout Shift)
+
+### Rails
+- N+1 query warnings (if dev mode)
+- CSRF token in forms
+- Turbo/Stimulus integration
+- Flash messages
+
+### WordPress
+- Plugin conflicts (JS errors from different plugins)
+- Admin bar (logged-in users)
+- REST API (`/wp-json/`)
+- Mixed content warnings
+
+### SPAs (React, Vue, Angular)
+- Client-side routes (use `snapshot -i` not `links`)
+- Stale state (navigate away and back)
+- Browser history (back/forward)
+- Memory leaks (extended use)
+
+## Tips for best results
+
+<AccordionGroup>
+  <Accordion title="Use diff-aware mode for feature work">
+    Just run `/qa` without a URL on your feature branch. It automatically
+    scopes testing to what you changed.
+  </Accordion>
+
+  <Accordion title="Run quick mode for fast feedback">
+    `/qa --quick` gives you a health score in 30 seconds. Use it:
+    - After every deploy
+    - Before creating a PR
+    - As a smoke test
+  </Accordion>
+
+  <Accordion title="Save baselines for regression tracking">
+    After each QA run, a `baseline.json` is saved. Compare future runs:
+    
+    `/qa https://staging.app.com --regression .gstack/qa-reports/baseline.json`
+    
+    Tracks: score delta, fixed issues, new issues.
+  </Accordion>
+
+  <Accordion title="Import cookies for auth flows">
+    Use `/setup-browser-cookies` before QA to test authenticated pages:
+    
+    `/setup-browser-cookies myapp.com`
+    `/qa https://myapp.com/dashboard`
+  </Accordion>
+</AccordionGroup>
+
+## Important rules
+
+1. **Repro is everything** — Every issue needs at least one screenshot
+2. **Verify before documenting** — Retry once to confirm reproducibility
+3. **Never include credentials** — Write `[REDACTED]` in repro steps
+4. **Write incrementally** — Append each issue as you find it
+5. **Never read source code** — Test as a user, not a developer
+6. **Check console after every interaction** — JS errors that don't surface visually are still bugs
+7. **Test like a user** — Realistic data, complete workflows end-to-end
+8. **Depth over breadth** — 5-10 well-documented issues > 20 vague descriptions
+
+## Related commands
+
+- [`/browse`](/commands/browse) — Natural language browser automation
+- [`/setup-browser-cookies`](/commands/setup-browser-cookies) — Import auth cookies
+- [`/ship`](/commands/ship) — Ship workflow (use `/qa` after deploy)

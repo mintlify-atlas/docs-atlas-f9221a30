@@ -1,97 +1,88 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "gstack"
+description: "Claude Code workflow toolkit with AI agent skills and headless browser automation"
 ---
 
-## Setting up
+<img
+  className="block dark:hidden"
+  src="https://media.brand.dev/d6c060ec-2523-4c85-8154-1eb3bc30b0a5.svg"
+  alt="gstack"
+  style={{ maxWidth: '200px', marginBottom: '2rem' }}
+/>
+<img
+  className="hidden dark:block"
+  src="https://media.brand.dev/d6c060ec-2523-4c85-8154-1eb3bc30b0a5.svg"
+  alt="gstack"
+  style={{ maxWidth: '200px', marginBottom: '2rem' }}
+/>
 
-Get your documentation site up and running in minutes.
+## Turn Claude Code from one generic assistant into a team of specialists
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+gstack provides eight opinionated workflow skills for Claude Code. Plan review, code review, one-command shipping, browser automation, QA testing, and engineering retrospectives — all as slash commands.
 
-## Make it yours
+### Without gstack
 
-Design a docs site that looks great and empowers your users.
+- The agent takes your request literally — it never asks if you're building the right thing
+- "Review my PR" gives inconsistent depth every time
+- "Ship this" turns into a long back-and-forth about what to do
+- The agent can write code but can't see your app — it's half blind
+- You still do QA by hand: open browser, click around, check pages, squint at layouts
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+### With gstack
+
+Switch cognitive modes on demand — founder taste, engineering rigor, paranoid review, or fast execution.
+
+<CardGroup cols={2}>
+  <Card title="/plan-ceo-review" icon="lightbulb" href="/skills/plan-ceo-review">
+    Founder mode: Rethink the problem and find the 10-star product
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="/plan-eng-review" icon="diagram-project" href="/skills/plan-eng-review">
+    Eng manager mode: Lock in architecture, data flow, and edge cases
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="/review" icon="magnifying-glass" href="/skills/review">
+    Staff engineer mode: Find bugs that pass CI but blow up in production
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="/ship" icon="rocket" href="/skills/ship">
+    Release engineer mode: Sync, test, push, and open PR automatically
   </Card>
-</Columns>
+  <Card title="/browse" icon="browser" href="/skills/browse">
+    QA engineer mode: Give the agent eyes to interact with live URLs
+  </Card>
+  <Card title="/qa" icon="clipboard-check" href="/skills/qa">
+    QA lead mode: Systematic testing with diff-aware analysis
+  </Card>
+  <Card title="/setup-browser-cookies" icon="cookie" href="/skills/setup-browser-cookies">
+    Import cookies from real browsers into headless session
+  </Card>
+  <Card title="/retro" icon="chart-line" href="/skills/retro">
+    Engineering manager mode: Weekly retrospective with team metrics
+  </Card>
+</CardGroup>
 
-## Create beautiful pages
+## Get started in minutes
 
-Everything you need to create world-class documentation.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install gstack and get it running in Claude Code
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Learn the workflow with a complete example
+  </Card>
+  <Card title="Browser Commands" icon="terminal" href="/browser/commands">
+    Reference for all 40+ browser automation commands
+  </Card>
+  <Card title="Multi-workspace Setup" icon="layer-group" href="/guides/multi-workspace-setup">
+    Run multiple Claude Code sessions in parallel with Conductor
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Key features
 
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+- **Eight opinionated workflow skills** as slash commands for different cognitive modes
+- **Persistent headless browser** with sub-second latency and session state
+- **Ref-based element interaction** using accessibility tree — no CSS selectors
+- **Diff-aware QA testing** that analyzes your git changes and tests affected pages
+- **Cookie import from real browsers** (Chrome, Arc, Brave, Edge, Comet)
+- **Greptile PR review integration** with automatic triage
+- **Multi-workspace support** with isolated browser instances
+- **Engineering retrospectives** with team-aware metrics and feedback

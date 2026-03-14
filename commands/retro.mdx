@@ -1,0 +1,377 @@
+---
+title: "/retro"
+description: "Weekly engineering retrospective with metrics and team insights"
+---
+
+## Overview
+
+The `/retro` command generates a comprehensive engineering retrospective analyzing commit history, work patterns, code quality metrics, and team contributions. It's designed for senior ICs and CTOs using Claude Code as a force multiplier.
+
+## When to use
+
+Run `/retro` to:
+- Review the team's work at the end of a sprint or week
+- Track trends in code quality and velocity
+- Identify patterns and improvement opportunities
+- Celebrate wins and provide growth feedback
+
+## Syntax
+
+```bash
+/retro [window]
+/retro compare [window]
+```
+
+**Windows:**
+- `/retro` — Last 7 days (default)
+- `/retro 24h` — Last 24 hours
+- `/retro 14d` — Last 14 days
+- `/retro 30d` — Last 30 days
+
+**Compare mode:**
+- `/retro compare` — Compare current 7d vs prior 7d
+- `/retro compare 14d` — Compare current 14d vs prior 14d
+
+## What it tracks
+
+### Summary metrics
+
+| Metric | Description |
+|--------|-------------|
+| Commits to main | Total commits merged |
+| Contributors | Unique authors |
+| PRs merged | Count of PRs (from commit messages) |
+| Total insertions | Lines added |
+| Total deletions | Lines removed |
+| Net LOC added | Insertions - deletions |
+| Test LOC | Lines in test files |
+| Test LOC ratio | Test LOC / total LOC |
+| Version range | First version → last version |
+| Active days | Days with at least 1 commit |
+| Detected sessions | Coding sessions (45-min gap threshold) |
+| Avg LOC/session-hour | Productivity metric |
+| Greptile signal | Valid catches / (valid + FPs) |
+
+### Team-aware output
+
+**Identifies "you"** (the person running `/retro`) vs teammates.
+
+**Per-author leaderboard:**
+```
+Contributor         Commits   +/-          Top area
+You (garry)              32   +2400/-300   browse/
+alice                    12   +800/-150    app/services/
+bob                       3   +120/-40     tests/
+```
+
+### Time patterns
+
+**Hourly distribution** (Pacific time):
+```
+Hour  Commits  ████████████████
+ 00:    4      ████
+ 07:    5      █████
+ 09:    8      ████████
+ 14:    12     ████████████
+ 22:    15     ███████████████
+```
+
+**Session detection:**
+- Deep sessions (50+ min)
+- Medium sessions (20-50 min)
+- Micro sessions (&lt;20 min)
+
+**Identifies:**
+- Peak hours
+- Dead zones
+- Bimodal patterns (morning/evening)
+- Late-night coding (after 10pm)
+
+### Commit type breakdown
+
+From conventional commit prefixes:
+```
+feat:     20  (40%)  ████████████████████
+fix:      27  (54%)  ███████████████████████████
+refactor:  2  ( 4%)  ██
+chore:     1  ( 2%)  █
+```
+
+Flags if fix ratio >50% (ship fast, fix fast pattern).
+
+### Code quality signals
+
+- **Test LOC ratio trend** — Are you writing more tests?
+- **Hotspot analysis** — Files changed 5+ times (churn)
+- **XL PRs** — PRs >1500 LOC (should these be split?)
+- **Greptile signal** — Valid catches vs false positives
+
+### Streak tracking
+
+**Team streak:** Consecutive days with at least 1 commit to `origin/main`
+
+**Your streak:** Your personal consecutive commit days
+
+```markdown
+Team shipping streak: 47 consecutive days
+Your shipping streak: 32 consecutive days
+```
+
+No hard cutoff — queries full git history.
+
+## Team breakdown
+
+For each contributor:
+
+### You (personal deep-dive)
+
+The most detailed section:
+- Commits, LOC, test ratio
+- Session patterns and peak hours
+- Focus areas (which directories you touched)
+- Biggest ship (highest-impact PR)
+- **What you did well** (2-3 specific things)
+- **Where to level up** (1-2 actionable suggestions)
+
+### Teammates
+
+For each teammate (sorted by commits descending):
+
+**What they shipped:** 2-3 sentences on contributions, focus, patterns
+
+**Praise:** 1-2 specific things anchored in actual commits.
+
+✓ Good: "Cleaned up the auth module in 3 reviewable PRs — textbook decomposition"
+
+✗ Bad: "Great work this week!"
+
+**Opportunity for growth:** 1 specific, constructive suggestion. Frame as investment, not criticism.
+
+✓ Good: "Test coverage on payment module is 8% — worth investing before next feature lands"
+
+✗ Bad: "Write more tests"
+
+<Note>
+  Praise and growth suggestions are **always specific** and **anchored in actual commits**. Never generic.
+</Note>
+
+## Output structure
+
+### Tweetable summary (first line)
+
+```
+Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs, peak: 10pm | Streak: 47d
+```
+
+### Sections
+
+1. **Summary Table** — All metrics at a glance
+2. **Trends vs Last Retro** — Deltas from previous run (if exists)
+3. **Time & Session Patterns** — Hourly distribution, session analysis
+4. **Shipping Velocity** — Commit type mix, PR sizes, fix chains
+5. **Code Quality Signals** — Test ratio, hotspots, XL PRs, Greptile
+6. **Focus & Highlights** — Focus score, ship of the week
+7. **Your Week** — Personal deep-dive (most important section)
+8. **Team Breakdown** — Per-teammate analysis (if >1 contributor)
+9. **Top 3 Team Wins** — Highest-impact ships
+10. **3 Things to Improve** — Specific, actionable, anchored in commits
+11. **3 Habits for Next Week** — Small (&lt;5 min to adopt), practical
+12. **Week-over-Week Trends** — If window ≥14d, weekly buckets
+
+## Example output (excerpt)
+
+```markdown
+Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 41% tests, 12 PRs, peak: 10pm | Streak: 47d
+
+## Engineering Retro: Mar 1-7, 2026
+
+### Summary Table
+
+| Metric | Value |
+|--------|-------|
+| Commits to main | 47 |
+| Contributors | 3 |
+| PRs merged | 12 |
+| Total insertions | 3200 |
+| Total deletions | 800 |
+| Net LOC added | 2400 |
+| Test LOC (insertions) | 1300 |
+| Test LOC ratio | 41% |
+| Active days | 6 |
+| Detected sessions | 14 |
+| Avg LOC/session-hour | 350 |
+| Greptile signal | 83% (5 catches, 1 FP) |
+
+### Contributor Leaderboard
+
+```
+Contributor         Commits   +/-          Top area
+You (garry)              32   +2400/-300   browse/
+alice                    12   +800/-150    app/services/
+bob                       3   +120/-40     tests/
+```
+
+### Trends vs Last Retro
+
+```
+                    Last        Now         Delta
+Test ratio:         22%    →    41%         ↑19pp
+Sessions:           10     →    14          ↑4
+LOC/hour:           200    →    350         ↑75%
+Fix ratio:          54%    →    30%         ↓24pp (improving)
+```
+
+[... more sections ...]
+
+### Your Week
+
+You shipped 32 commits across 6 days with a 41% test ratio — a significant
+improvement from last week's 22%. Your focus was on browse/ (18 commits),
+with deep sessions clustering around 10pm-midnight.
+
+**Your biggest ship:** Headless browser CLI rewrite (#47) — 800 LOC,
+consolidated 3 separate tools into one with snapshot diffing.
+
+**What you did well:**
+- Every PR under 300 LOC — disciplined decomposition made review faster
+- Added integration tests for all snapshot commands (not just happy paths)
+- Fixed the N+1 query causing 2s dashboard load times (perf win)
+
+**Where to level up:**
+- 5 late-night commits (after midnight) — sustainable pace matters long-term
+- Could extract the cookie import logic to a shared concern (DRY opportunity)
+
+### Team Breakdown
+
+#### alice
+
+alice shipped 12 commits focused on app/services/, including the new billing
+integration. Peak hours: 7am-9am. Test ratio: 35%.
+
+**Praise:**
+- Shipped the PayPal integration in 3 small PRs with end-to-end tests
+- Caught and fixed the race condition in webhook handling before it hit prod
+
+**Opportunity for growth:**
+- Test coverage on the payment module is 35% — worth investing before adding
+  the next payment provider
+
+[... more team members ...]
+
+### Top 3 Team Wins
+
+1. **Browser CLI rewrite** (garry, #47) — Consolidated 3 tools, 800 LOC
+2. **PayPal integration** (alice, #52, #53, #54) — New revenue stream, 45% test coverage
+3. **Performance fix** (garry, #49) — Dashboard load time 2s → 200ms
+
+### 3 Things to Improve
+
+1. Test ratio jumped to 41% but payment module is still 35% — bring that up
+   before the Stripe migration lands on top
+2. 3 XL PRs this week (800+ LOC) — breaking these up catches issues earlier
+3. Fix ratio was 30% (down from 54%, improving) — keep investing in review
+
+### 3 Habits for Next Week
+
+1. Review each other's PRs same-day (faster feedback loop)
+2. Run `/review` before every `/ship` (catch issues pre-merge)
+3. Add one test for each new public method (no exceptions)
+```
+
+## Compare mode
+
+Compares current window vs prior same-length window:
+
+```markdown
+User: /retro compare 14d
+
+Assistant:
+Comparing:
+- Current: Feb 28 - Mar 13 (14 days)
+- Prior:   Feb 14 - Feb 27 (14 days)
+
+                    Prior       Now         Delta
+Commits:            32     →    47          ↑47%
+Test ratio:         22%    →    41%         ↑19pp
+LOC/hour:           200    →    350         ↑75%
+Sessions:           10     →    14          ↑40%
+Fix ratio:          54%    →    30%         ↓24pp (improving)
+
+**Biggest improvement:** Test ratio nearly doubled (22% → 41%)
+
+**Regression:** XL PRs increased (1 → 3) — watch PR size discipline
+
+[... full retro for current window follows ...]
+```
+
+## Persistent history
+
+Each retro saves a snapshot:
+
+```
+.context/retros/
+├── 2026-03-08-1.json
+├── 2026-03-08-2.json  # If you run twice in one day
+├── 2026-03-14-1.json
+└── ...
+```
+
+**Schema:**
+```json
+{
+  "date": "2026-03-08",
+  "window": "7d",
+  "metrics": { "commits": 47, "test_ratio": 0.41, ... },
+  "authors": { "Garry Tan": { "commits": 32, ... }, ... },
+  "version_range": ["1.16.0.0", "1.16.1.0"],
+  "streak_days": 47,
+  "tweetable": "Week of Mar 1: 47 commits..."
+}
+```
+
+Future retros load the most recent snapshot for trend comparison.
+
+## Tips for best results
+
+<AccordionGroup>
+  <Accordion title="Run weekly on the same day">
+    Consistent cadence builds trend data. Try Friday afternoons or Monday
+    mornings.
+  </Accordion>
+
+  <Accordion title="Use 14d or 30d for sprints">
+    If your team works in 2-week sprints:
+    ```bash
+    /retro 14d
+    ```
+    
+    Monthly reviews:
+    ```bash
+    /retro 30d
+    ```
+  </Accordion>
+
+  <Accordion title="Share with the team">
+    The retro narrative is designed to be shared. Copy the team breakdown
+    sections and send them in your weekly update.
+  </Accordion>
+
+  <Accordion title="Act on the '3 habits'">
+    The habits section gives you 3 small (&lt;5 min) improvements. Pick one
+    and commit to it for the next week.
+  </Accordion>
+</AccordionGroup>
+
+## Tone and approach
+
+- **Encouraging but candid** — No coddling, no generic praise
+- **Specific and concrete** — Always anchored in actual commits/code
+- **Praise is earned** — "What you'd actually say in a 1:1"
+- **Growth = investment** — "This is worth your time because..."
+- **Never compare teammates negatively** — Each section stands alone
+
+## Related commands
+
+- [`/ship`](/commands/ship) — Ship workflow (generates commits analyzed by `/retro`)
+- [`/review`](/commands/review) — Pre-merge review (improves code quality metrics)
+- [`/plan-eng-review`](/commands/plan-eng-review) — Plan review (sets up well-tested features)

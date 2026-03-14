@@ -1,0 +1,242 @@
+---
+title: /review
+description: Paranoid staff engineer mode - find bugs that pass CI but blow up in production
+---
+
+**This is your paranoid staff engineer mode.** Passing tests do not mean the branch is safe.
+
+`/review` exists because there is a whole class of bugs that can survive CI and still punch you in the face in production.
+
+## What It Looks For
+
+This is a structural audit, not a style nitpick pass. It looks for things like:
+
+- **N+1 queries** - Rendering lists that trigger queries per item
+- **Race conditions** - Two tabs overwriting the same state
+- **Trust boundaries** - Trusting client-provided data without validation
+- **Missing indexes** - Queries that will be slow in production
+- **Stale reads** - Reading data that might be out of date
+- **Escaping bugs** - HTML/SQL/command injection vectors
+- **Broken invariants** - "Exactly one hero image" rule that breaks under concurrency
+- **Bad retry logic** - Retrying operations that aren't idempotent
+- **Tests that pass while missing the real failure mode** - Happy path only
+
+From the README:
+
+```
+You:   /review
+
+Claude: Race condition: two tabs can overwrite cover-photo selection.
+        Trust boundary: pulling web data into draft generation creates
+        a prompt injection vector. Missing: orphan cleanup for failed
+        uploads.
+```
+
+**I do not want flattery here. I want the model imagining the production incident before it happens.**
+
+## Greptile Integration
+
+[Greptile](https://greptile.com) is a YC company that reviews your PRs automatically. It catches real bugs — race conditions, security issues, things that pass CI and blow up in production.
+
+**Setup:** Install Greptile on your GitHub repo at [greptile.com](https://greptile.com) — it takes about 30 seconds. Once it's reviewing your PRs, gstack picks up its comments automatically. No additional configuration.
+
+### The Triage Problem
+
+The problem with any automated reviewer is triage. Greptile is good, but not every comment is a real issue:
+- Some are false positives
+- Some flag things you already fixed three commits ago
+- Without a triage layer, the comments pile up and you start ignoring them
+
+gstack solves this. `/review` is Greptile-aware. It reads Greptile's comments, classifies each one, and takes action:
+
+- **Valid issues** → Added to critical findings and fixed before shipping
+- **Already-fixed issues** → Auto-reply acknowledging the catch
+- **False positives** → You confirm, and a reply goes out explaining why it's wrong
+
+### Learning Over Time
+
+Every false positive you confirm gets saved to `~/.gstack/greptile-history.md`. Future runs auto-skip known FP patterns for your codebase.
+
+And `/retro` tracks Greptile's batting average over time — so you can see whether the signal-to-noise ratio is improving.
+
+### Example from README
+
+```
+You:   /review
+
+Claude: Pre-Landing Review: 3 issues (1 critical, 2 informational)
+        + 3 Greptile comments (1 valid, 1 fixed, 1 FP)
+
+        CRITICAL█ app/services/payment_service.rb:47
+        Race condition: concurrent charges can double-debit.
+        Recommend: DB-level advisory lock around the charge block.
+
+        [GREPTILE - VALID] app/services/payment_service.rb:47
+        Race condition: concurrent charges can double-debit. Recommend
+        DB-level advisory lock.
+        → https://github.com/you/app/pull/42#discussion_r123
+
+        [GREPTILE - ALREADY FIXED] app/models/user.rb:12
+        Missing null check on email before downcase.
+        → Already fixed in commit abc1234. Auto-replying.
+
+        [GREPTILE - FALSE POSITIVE] lib/auth.rb:88
+        "Token comparison should use constant-time comparison."
+        We already use ActiveSupport::SecurityUtils.secure_compare.
+        → https://github.com/you/app/pull/42#discussion_r125
+
+You:   Fix the race condition (confirming Greptile was right)
+
+Claude: Applied advisory lock. Committed: fix: address Greptile
+        review — advisory lock on concurrent charges
+
+        The auth token comment is a false positive — we're already
+        using secure_compare.
+
+        Options:
+          A) Reply to Greptile explaining (recommended)
+          B) Fix it anyway
+          C) Ignore
+
+You:    A
+
+Claude: Replied to Greptile. Saved pattern to greptile-history.md.
+```
+
+Three Greptile comments. One real fix. One auto-acknowledged. One false positive pushed back with a reply. Total extra time: about 30 seconds.
+
+## How It Works
+
+### Step 1: Check branch
+
+Runs `git branch --show-current` to get the current branch. If on `main`, stops (nothing to review).
+
+Runs `git diff origin/main --stat` to check if there's a diff.
+
+### Step 2: Read the checklist
+
+Reads `.claude/skills/review/checklist.md` — the structured review checklist.
+
+**If the file cannot be read, STOP and report the error.** Do not proceed without the checklist.
+
+### Step 2.5: Check for Greptile review comments
+
+Reads `.claude/skills/review/greptile-triage.md` and follows the fetch, filter, and classify steps.
+
+**If no PR exists or there are zero Greptile comments:** Skip this step silently. Greptile integration is additive — the review works without it.
+
+**If Greptile comments are found:** Store the classifications for Step 5.
+
+### Step 3: Get the diff
+
+Fetches the latest main to avoid false positives:
+
+```bash
+git fetch origin main --quiet
+git diff origin/main
+```
+
+This includes both committed and uncommitted changes against the latest main.
+
+### Step 4: Two-pass review
+
+Applies the checklist against the diff in two passes:
+
+1. **Pass 1 (CRITICAL):** SQL & Data Safety, LLM Output Trust Boundary
+2. **Pass 2 (INFORMATIONAL):** Conditional Side Effects, Magic Numbers & String Coupling, Dead Code & Consistency, LLM Prompt Issues, Test Gaps, View/Frontend
+
+Respects the suppressions — does NOT flag items listed in the "DO NOT flag" section.
+
+### Step 5: Output findings
+
+**Always outputs ALL findings** — both critical and informational.
+
+- **If CRITICAL issues found:** Output all findings, then for EACH critical issue use a separate `AskUserQuestion` with:
+  - The problem
+  - Your recommended fix
+  - Options: A) Fix it now, B) Acknowledge, C) False positive — skip
+
+  After all critical questions are answered, output a summary of what you chose for each issue. If you chose A (fix) on any issue, apply the recommended fixes.
+
+- **If only non-critical issues found:** Output findings. No further action needed.
+
+- **If no issues found:** Output `Pre-Landing Review: No issues found.`
+
+### Greptile comment resolution
+
+After outputting its own findings, if Greptile comments were classified:
+
+**Includes a Greptile summary:** `+ N Greptile comments (X valid, Y fixed, Z FP)`
+
+1. **VALID & ACTIONABLE comments:** Included in CRITICAL findings — follow the same `AskUserQuestion` flow. If you choose C (false positive), posts a reply and saves the pattern to `~/.gstack/greptile-history.md`.
+
+2. **FALSE POSITIVE comments:** Presents each via `AskUserQuestion`:
+   - Show the Greptile comment
+   - Explain why it's a false positive
+   - Options:
+     - A) Reply to Greptile explaining why this is incorrect (recommended)
+     - B) Fix it anyway (if low-effort)
+     - C) Ignore
+
+3. **VALID BUT ALREADY FIXED comments:** Reply acknowledging the catch — no `AskUserQuestion` needed:
+   - Post reply: `"Good catch — already fixed in <commit-sha>."`
+   - Save to `~/.gstack/greptile-history.md`
+
+4. **SUPPRESSED comments:** Skip silently — known false positives from previous triage.
+
+## Important Rules
+
+- **Read the FULL diff before commenting.** Do not flag issues already addressed in the diff.
+- **Read-only by default.** Only modify files if the user explicitly chooses "Fix it now" on a critical issue. Never commit, push, or create PRs.
+- **Be terse.** One line problem, one line fix. No preamble.
+- **Only flag real problems.** Skip anything that's fine.
+
+## Example Session
+
+```
+You:   /review
+
+Claude: Analyzing diff against origin/main...
+
+        Pre-Landing Review: 2 issues (1 critical, 1 informational)
+
+        CRITICAL█ app/controllers/listings_controller.rb:23
+        N+1 query: @listings.each iterates photos without preload.
+        Recommend: Add .includes(:photos) to the query.
+
+        A) Fix it now (recommended — simple preload)
+        B) Acknowledge and continue
+        C) False positive
+
+You:   A
+
+Claude: Applied fix. Changed line 18:
+        - @listings = Listing.where(user: current_user)
+        + @listings = Listing.includes(:photos).where(user: current_user)
+
+        Re-run /review to verify the fix.
+```
+
+## When to Use It
+
+Use `/review` when:
+
+- You're about to ship a branch and want to catch production bugs
+- You want to triage Greptile comments automatically
+- You need a structural audit beyond what tests catch
+
+**Do not use it when:**
+- You're still in planning phase (use `/plan-ceo-review` or `/plan-eng-review`)
+- You're ready to ship without review (use `/ship` which runs review automatically)
+
+## Next Steps
+
+After `/review`:
+
+1. Fix any critical issues found
+2. Use `/ship` to sync main, run tests, and create PR
+3. Use `/qa` to verify the fix works end-to-end
+
+<Card title="Ship" icon="rocket" href="/skills/ship">
+  Sync main, run tests, push, open PR
+</Card>

@@ -1,0 +1,153 @@
+---
+title: Visual Commands
+description: Commands for capturing screenshots, PDFs, and visual comparisons
+---
+
+Visual commands capture page visuals in various formats and perform visual comparisons between pages.
+
+## Commands
+
+<ParamField path="screenshot" type="command">
+  Save screenshot
+  
+  **Usage:** `screenshot [path]`
+  
+  **Description:** Captures a screenshot of the current page. If no path is provided, a default filename is generated.
+  
+  **Examples:**
+  ```bash
+  screenshot
+  screenshot /tmp/homepage.png
+  screenshot ./results/page.png
+  ```
+  
+  **Output format:** PNG image
+</ParamField>
+
+<ParamField path="pdf" type="command">
+  Save page as PDF
+  
+  **Usage:** `pdf [path]`
+  
+  **Description:** Saves the current page as a PDF document. If no path is provided, a default filename is generated.
+  
+  **Examples:**
+  ```bash
+  pdf
+  pdf /tmp/document.pdf
+  pdf ./reports/page.pdf
+  ```
+  
+  **Output format:** PDF document with full page content
+</ParamField>
+
+<ParamField path="responsive" type="command">
+  Capture responsive screenshots
+  
+  **Usage:** `responsive [prefix]`
+  
+  **Description:** Captures screenshots at three standard viewport sizes: mobile (375x812), tablet (768x1024), and desktop (1280x720). Saves files as `{prefix}-mobile.png`, `{prefix}-tablet.png`, and `{prefix}-desktop.png`.
+  
+  **Examples:**
+  ```bash
+  responsive
+  responsive homepage
+  responsive /tmp/test
+  ```
+  
+  **Output files:**
+  - `{prefix}-mobile.png` - 375x812 (iPhone size)
+  - `{prefix}-tablet.png` - 768x1024 (iPad size)
+  - `{prefix}-desktop.png` - 1280x720 (desktop size)
+</ParamField>
+
+<ParamField path="diff" type="command">
+  Compare text between two pages
+  
+  **Usage:** `diff <url1> <url2>`
+  
+  **Description:** Navigates to two URLs and performs a text diff, showing what changed between them. Useful for comparing versions or detecting content changes.
+  
+  **Examples:**
+  ```bash
+  diff https://example.com/v1 https://example.com/v2
+  diff https://staging.example.com https://prod.example.com
+  ```
+  
+  **Output:** Text diff showing additions and removals
+</ParamField>
+
+## Common Patterns
+
+### Capture full page
+```bash
+goto https://example.com
+screenshot homepage.png
+```
+
+### Generate PDF report
+```bash
+goto https://example.com/report
+pdf monthly-report.pdf
+```
+
+### Test responsive design
+```bash
+goto https://example.com
+responsive homepage
+# Creates: homepage-mobile.png, homepage-tablet.png, homepage-desktop.png
+```
+
+### Compare staging vs production
+```bash
+diff https://staging.example.com https://example.com
+```
+
+### Capture after interaction
+```bash
+goto https://example.com
+click button.show-menu
+wait .menu-visible
+screenshot menu-open.png
+```
+
+### Document form states
+```bash
+goto https://example.com/form
+screenshot form-empty.png
+fill input[name="email"] invalid-email
+click button[type="submit"]
+wait .error-message
+screenshot form-error.png
+```
+
+### Multi-viewport testing
+```bash
+goto https://example.com
+
+# Mobile
+viewport 375x812
+screenshot mobile.png
+
+# Tablet
+viewport 768x1024
+screenshot tablet.png
+
+# Desktop
+viewport 1920x1080
+screenshot desktop.png
+```
+
+### Visual regression workflow
+```bash
+# Capture baseline
+goto https://example.com
+screenshot baseline.png
+
+# Make changes, then capture comparison
+goto https://example.com
+screenshot comparison.png
+
+# Compare text content
+diff https://example.com https://example.com/new
+```

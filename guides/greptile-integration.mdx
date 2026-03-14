@@ -1,0 +1,231 @@
+---
+title: Greptile PR Review Integration
+description: Automated PR review with intelligent triage workflow
+---
+
+## Overview
+
+[Greptile](https://greptile.com) is a YC company that reviews your PRs automatically. It catches real bugs — race conditions, security issues, things that pass CI and blow up in production.
+
+gstack integrates directly with Greptile to add an intelligent triage layer. `/review` and `/ship` read Greptile's comments, classify each one, and take action automatically.
+
+## What is Greptile?
+
+Greptile analyzes your pull requests and leaves review comments on GitHub. It understands your codebase structure and can catch:
+
+- Race conditions
+- Security vulnerabilities
+- N+1 queries
+- Missing null checks
+- Trust boundary violations
+- Performance issues
+- Logic errors that pass tests
+
+It has genuinely saved my ass more than once.
+
+## Why Use It?
+
+The problem with any automated reviewer is **triage**. Not every comment is a real issue:
+
+- Some are valid bugs that need fixing
+- Some flag things you already fixed three commits ago
+- Some are false positives
+
+Without a triage layer, the comments pile up and you start ignoring them — which defeats the purpose.
+
+**gstack solves this.** `/review` and `/ship` automatically classify and handle each Greptile comment.
+
+## Setup
+
+<Steps>
+  <Step title="Install Greptile on GitHub">
+    Go to [greptile.com](https://greptile.com) and connect your repository. Takes about 30 seconds.
+  </Step>
+  
+  <Step title="Create a PR">
+    Greptile automatically reviews new pull requests and leaves comments
+  </Step>
+  
+  <Step title="Use /review or /ship">
+    gstack picks up Greptile comments automatically. No additional configuration needed.
+  </Step>
+</Steps>
+
+## How /review and /ship Are Greptile-Aware
+
+When you run `/review` or `/ship`, gstack:
+
+1. **Fetches PR comments** from GitHub (if a PR exists)
+2. **Identifies Greptile comments** by author
+3. **Classifies each comment** into three categories:
+   - **Valid issues** — Real bugs that need fixing
+   - **Already fixed** — Issues addressed in later commits
+   - **False positives** — Incorrect or not applicable
+4. **Takes action** based on classification
+
+## Triage Workflow
+
+### Valid Issues
+
+Added to critical findings and fixed before shipping:
+
+```
+Claude: Greptile found 1 valid issue:
+
+        [VALID] app/services/payment_service.rb:47 — Race condition:
+        concurrent charges can double-debit. Recommend DB-level advisory
+        lock around the charge block.
+        → https://github.com/you/app/pull/42#discussion_r123
+
+        Fixing the race condition in payment_service.rb...
+        Applied advisory lock. Committed: fix: address Greptile
+        review — advisory lock on concurrent charges
+```
+
+The issue gets fixed, committed, and documented in the PR body.
+
+### Already Fixed
+
+Auto-reply acknowledging the catch:
+
+```
+Claude: [ALREADY FIXED] app/models/user.rb:12 — Missing null check
+        on email before downcase.
+        → Already fixed in commit abc1234. Auto-replying.
+```
+
+A comment is posted on the PR:
+> Good catch! This was fixed in abc1234 (3 commits after the code you reviewed).
+
+### False Positives
+
+You confirm, gstack replies explaining why it's wrong:
+
+```
+Claude: [FALSE POSITIVE] lib/auth.rb:88 — "Token comparison should
+        use constant-time comparison." We already use
+        ActiveSupport::SecurityUtils.secure_compare here.
+        → https://github.com/you/app/pull/42#discussion_r125
+
+        Options for the false positive:
+          A) Reply to Greptile explaining (recommended)
+          B) Fix it anyway
+          C) Ignore
+
+You:    A
+
+Claude: Replied to Greptile with explanation.
+```
+
+The reply includes context about why the comment doesn't apply.
+
+## Learning from False Positives
+
+Every false positive you confirm gets saved to `~/.gstack/greptile-history.md`:
+
+```markdown
+# Greptile False Positive History
+
+## 2026-03-14: lib/auth.rb constant-time comparison
+
+**Comment:** "Token comparison should use constant-time comparison"
+
+**Why FP:** Code already uses ActiveSupport::SecurityUtils.secure_compare
+
+**Pattern:** Greptile doesn't recognize ActiveSupport security utils
+```
+
+Future runs check this history and **auto-skip known FP patterns** for your codebase. The system learns over time.
+
+## Example Workflow
+
+```
+You:   /ship
+
+Claude: [syncs main, runs tests, pre-landing review...]
+
+        Greptile found 3 comments on this PR:
+
+        [VALID] app/services/payment_service.rb:47 — Race condition:
+        concurrent charges can double-debit. Recommend DB-level advisory
+        lock around the charge block.
+        → https://github.com/you/app/pull/42#discussion_r123
+
+        [ALREADY FIXED] app/models/user.rb:12 — Missing null check
+        on email before downcase.
+        → Already fixed in commit abc1234. Auto-replying.
+
+        [FALSE POSITIVE] lib/auth.rb:88 — "Token comparison should
+        use constant-time comparison." We already use
+        ActiveSupport::SecurityUtils.secure_compare here.
+        → https://github.com/you/app/pull/42#discussion_r125
+
+        Fixing the race condition in payment_service.rb...
+        Applied advisory lock. Committed: fix: address Greptile
+        review — advisory lock on concurrent charges
+
+        The auth token comment is a false positive — we're already
+        using secure_compare.
+
+        Options for the false positive:
+          A) Reply to Greptile explaining (recommended)
+          B) Fix it anyway
+          C) Ignore
+
+You:    A
+
+Claude: Replied to Greptile. Re-running tests after the fix...
+        All tests pass. Continuing to version bump.
+
+        [creates PR with Greptile Review section in body]
+        PR: https://github.com/you/app/pull/42
+```
+
+**Result:** Three Greptile comments. One real fix. One auto-acknowledged. One false positive pushed back with a reply. Total extra time: about 30 seconds.
+
+## Retro Tracking
+
+`/retro` tracks Greptile's batting average over time:
+
+```
+Claude: Greptile Review Stats (last 30 days):
+        - 47 total comments
+        - 31 valid (66%)
+        - 12 already fixed (26%)
+        - 4 false positives (8%)
+        
+        Signal-to-noise ratio improving — FP rate down from 15% last month.
+```
+
+This helps you see whether the integration is getting more valuable over time.
+
+## PR Body Documentation
+
+The PR body includes a full audit trail:
+
+```markdown
+## Greptile Review
+
+✅ **Valid (1)**
+- Race condition in payment_service.rb — Fixed with advisory lock (commit abc123)
+
+✅ **Already Fixed (1)**  
+- Null check in user.rb — Fixed in commit def456
+
+❌ **False Positive (1)**
+- Auth token comparison — Already using secure_compare
+```
+
+Future reviewers can see exactly what Greptile caught and how it was handled.
+
+## Benefits
+
+**Two-layer review:** Greptile catches issues asynchronously. gstack triages them as part of the normal workflow.
+
+**Nothing falls through the cracks:** Every comment gets classified and handled.
+
+**Learns over time:** False positive history reduces noise.
+
+**Full audit trail:** PR body documents all Greptile findings and resolutions.
+
+Learn more at [greptile.com](https://greptile.com)

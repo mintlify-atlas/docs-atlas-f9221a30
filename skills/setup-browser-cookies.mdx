@@ -1,0 +1,125 @@
+---
+title: /setup-browser-cookies
+description: Session manager mode - import cookies from your real browser into the headless session
+---
+
+**This is your session manager mode.** Before `/qa` or `/browse` can test authenticated pages, they need cookies.
+
+Instead of manually logging in through the headless browser every time, `/setup-browser-cookies` imports your real sessions directly from your daily browser.
+
+## How It Works
+
+1. Find the browse binary
+2. Run `cookie-import-browser` to detect installed browsers and open the picker UI
+3. You select which cookie domains to import in your browser
+4. Cookies are decrypted and loaded into the Playwright session
+
+It auto-detects installed Chromium browsers (Comet, Chrome, Arc, Brave, Edge), decrypts cookies via the macOS Keychain, and loads them into the Playwright session.
+
+## Interactive Picker vs Direct Import
+
+### Interactive Picker (Default)
+
+An interactive picker UI lets you:
+- Switch between installed browsers
+- Search domains
+- Click "+" to import a domain's cookies
+- Click trash to remove imported cookies
+
+```
+You:   /setup-browser-cookies
+
+Claude: Cookie picker opened — select the domains you want to import
+        in your browser, then tell me when you're done.
+
+        [You pick github.com, myapp.com in the browser UI]
+
+You:    done
+
+Claude: Imported 2 domains (47 cookies). Session is ready.
+```
+
+### Direct Import (Alternative)
+
+If you specify a domain directly, it skips the UI:
+
+```
+You:   /setup-browser-cookies github.com
+
+Claude: Imported 12 cookies for github.com from Comet.
+```
+
+Replace `comet` with the appropriate browser if specified.
+
+## Supported Browsers
+
+- **Comet** (Chromium-based)
+- **Chrome**
+- **Arc**
+- **Brave**
+- **Edge**
+
+All are auto-detected on macOS.
+
+## Example Session
+
+```
+You:   /setup-browser-cookies staging.myapp.com
+
+Claude: Imported 8 cookies for staging.myapp.com from Chrome.
+
+You:   /qa https://staging.myapp.com --quick
+
+Claude: [Smoke test: homepage + 5 pages, 30 seconds]
+        Health Score: 91/100. No critical issues. 1 medium: mobile
+        nav overlap.
+```
+
+## First Import Per Browser
+
+First import per browser may trigger a macOS Keychain dialog — click **"Allow"** or **"Always Allow."**
+
+This is required to decrypt cookies stored in the browser's encrypted cookie database.
+
+## How the Picker Works
+
+- Cookie picker is served on the same port as the browse server (no extra process)
+- Only domain names and cookie counts are shown in the UI — **no cookie values are exposed**
+- The browse session persists cookies between commands, so imported cookies work immediately
+
+## When to Use It
+
+Use `/setup-browser-cookies` when:
+
+- You need to test authenticated pages with `/qa` or `/browse`
+- You want to skip manual login flows in QA
+- You're testing staging or production environments that require login
+
+**Do not use it when:**
+
+- You're testing unauthenticated pages (cookies not needed)
+- You want to test the login flow itself (manually log in with `/browse` instead)
+
+## Security Considerations
+
+**Cookies are real sessions.** Imported cookies give the headless browser the same access as your real browser.
+
+- Do not use this against sensitive production environments unless you intend to
+- The browse session persists cookies between commands
+- Session auto-shuts down after 30 minutes of idle time
+
+## Next Steps
+
+After importing cookies:
+
+1. Use `/qa` to systematically test authenticated pages
+2. Use `/browse` to interactively test specific flows
+
+<CardGroup cols={2}>
+  <Card title="QA" icon="clipboard-check" href="/skills/qa">
+    Systematic QA testing with diff-aware mode
+  </Card>
+  <Card title="Browse" icon="browser" href="/skills/browse">
+    Interactive browser testing
+  </Card>
+</CardGroup>

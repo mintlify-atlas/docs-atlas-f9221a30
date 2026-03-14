@@ -1,0 +1,260 @@
+---
+title: /qa
+description: QA lead mode - systematic testing with diff-aware, full, quick, and regression modes
+---
+
+**This is your QA lead mode.** `/browse` gives the agent eyes. `/qa` gives it a testing methodology.
+
+The most common use case: **you're on a feature branch, you just finished coding, and you want to verify everything works.**
+
+Just say `/qa` — it reads your git diff, identifies which pages and routes your changes affect, spins up the browser, and tests each one.
+
+**No URL required. No manual test plan. It figures out what to test from the code you changed.**
+
+## Four Modes
+
+### 1. Diff-Aware (Automatic on Feature Branches)
+
+This is the **primary mode** for developers verifying their work.
+
+When you say `/qa` without a URL and you're on a feature branch, it automatically:
+
+1. **Analyzes the branch diff** to understand what changed
+2. **Identifies affected pages/routes** from the changed files:
+   - Controller/route files → which URL paths they serve
+   - View/template/component files → which pages render them
+   - Model/service files → which pages use those models
+   - CSS/style files → which pages include those stylesheets
+   - API endpoints → test them directly
+   - Static pages → navigate to them
+3. **Detects the running app** — checks common local dev ports (`:3000`, `:4000`, `:8080`)
+4. **Tests each affected page/route**:
+   - Navigate to the page
+   - Take a screenshot
+   - Check console for errors
+   - If the change was interactive (forms, buttons, flows), test the interaction end-to-end
+   - Use `snapshot -D` before and after actions to verify the change had the expected effect
+5. **Cross-references with commit messages and PR description** to understand intent
+6. **Reports findings** scoped to the branch changes
+
+### 2. Full (Systematic Exploration)
+
+Systematic exploration. Visit every reachable page. Document 5-10 well-evidenced issues. Produce health score.
+
+Takes 5-15 minutes depending on app size.
+
+### 3. Quick (30-Second Smoke Test)
+
+Visit homepage + top 5 navigation targets.
+
+Check:
+- Page loads?
+- Console errors?
+- Broken links?
+
+Produce health score. No detailed issue documentation.
+
+### 4. Regression (Compare Against Baseline)
+
+Run full mode, then load `baseline.json` from a previous run.
+
+Diff:
+- Which issues are fixed?
+- Which are new?
+- What's the score delta?
+
+Append regression section to report.
+
+## Example from README
+
+```
+You:   /qa
+
+Claude: Analyzing branch diff against main...
+        12 files changed: 3 controllers, 2 views, 4 services, 3 tests
+
+        Affected routes: /listings/new, /listings/:id, /api/listings
+        Detected app running on localhost:3000.
+
+        [Tests each affected page — navigates, fills forms, clicks buttons,
+        screenshots, checks console errors]
+
+        QA Report: 3 routes tested, all working.
+        - /listings/new: upload + enrichment flow works end to end
+        - /listings/:id: detail page renders correctly
+        - /api/listings: returns 200 with expected shape
+        No console errors. No regressions on adjacent pages.
+```
+
+**That's the fastest path from "I just wrote code" to "it works."**
+
+## How Diff-Aware Mode Works
+
+From the SKILL.md:
+
+**When you say `/qa` without a URL and you're on a feature branch:**
+
+1. Run `git diff main...HEAD --name-only` and `git log main..HEAD --oneline`
+2. Identify affected pages/routes from changed files:
+   - Controller/route files → URL paths
+   - View/template/component files → pages that render them
+   - Model/service files → pages that use those models (check controllers that reference them)
+   - CSS/style files → pages that include those stylesheets
+   - API endpoints → test them directly with `$B js "await fetch('/api/...')"`
+   - Static pages (markdown, HTML) → navigate to them
+3. Detect the running app — check `localhost:3000`, `:4000`, `:8080`
+4. Test each affected page/route:
+   - Navigate
+   - Screenshot
+   - Check console for errors
+   - If interactive, test the flow end-to-end
+   - Use `snapshot -D` to verify the change had expected effect
+5. Cross-reference with commit messages and PR description to understand intent
+6. Report findings scoped to branch changes
+
+**If you provide a URL with diff-aware mode:** Use that URL as the base but still scope testing to the changed files.
+
+## Example QA Session
+
+```
+You:   /qa https://staging.myapp.com
+
+Claude: [Explores 12 pages, fills 3 forms, tests 2 flows]
+
+        QA Report: staging.myapp.com — Health Score: 72/100
+
+        Top 3 Issues:
+        1. CRITICAL: Checkout form submits with empty required fields
+        2. HIGH: Mobile nav menu doesn't close after selecting an item
+        3. MEDIUM: Dashboard chart overlaps sidebar below 1024px
+
+        [Full report with screenshots saved to .gstack/qa-reports/]
+```
+
+Reports and screenshots accumulate in `.gstack/qa-reports/` so you can track quality over time and compare runs.
+
+## Health Score Rubric
+
+Computes each category score (0-100), then takes the weighted average.
+
+### Console (weight: 15%)
+- 0 errors → 100
+- 1-3 errors → 70
+- 4-10 errors → 40
+- 10+ errors → 10
+
+### Links (weight: 10%)
+- 0 broken → 100
+- Each broken link → -15 (minimum 0)
+
+### Per-Category Scoring
+
+Each category starts at 100. Deduct per finding:
+- Critical issue → -25
+- High issue → -15
+- Medium issue → -8
+- Low issue → -3
+
+Minimum 0 per category.
+
+### Weights
+
+| Category | Weight |
+|----------|--------|
+| Console | 15% |
+| Links | 10% |
+| Visual | 10% |
+| Functional | 20% |
+| UX | 15% |
+| Performance | 10% |
+| Content | 5% |
+| Accessibility | 15% |
+
+### Final Score
+
+`score = Σ (category_score × weight)`
+
+## Testing Authenticated Pages
+
+Use `/setup-browser-cookies` first to import your real browser sessions, then `/qa` can test pages behind login.
+
+```
+You:   /setup-browser-cookies staging.myapp.com
+
+Claude: Imported 8 cookies for staging.myapp.com from Chrome.
+
+You:   /qa https://staging.myapp.com --quick
+
+Claude: [Smoke test: homepage + 5 pages, 30 seconds]
+        Health Score: 91/100. No critical issues. 1 medium: mobile
+        nav overlap.
+```
+
+## Per-Page Exploration Checklist
+
+At each page:
+
+1. **Visual scan** — Look at the annotated screenshot for layout issues
+2. **Interactive elements** — Click buttons, links, controls. Do they work?
+3. **Forms** — Fill and submit. Test empty, invalid, edge cases
+4. **Navigation** — Check all paths in and out
+5. **States** — Empty state, loading, error, overflow
+6. **Console** — Any new JS errors after interactions?
+7. **Responsiveness** — Check mobile viewport if relevant
+
+**Depth judgment:** Spend more time on core features (homepage, dashboard, checkout, search) and less on secondary pages (about, terms, privacy).
+
+**Quick mode:** Only visit homepage + top 5 navigation targets. Skip the per-page checklist — just check: loads? Console errors? Broken links visible?
+
+## Output Structure
+
+```
+.gstack/qa-reports/
+├── qa-report-{domain}-{YYYY-MM-DD}.md    # Structured report
+├── screenshots/
+│   ├── initial.png                        # Landing page annotated screenshot
+│   ├── issue-001-step-1.png               # Per-issue evidence
+│   ├── issue-001-result.png
+│   └── ...
+└── baseline.json                          # For regression mode
+```
+
+Report filenames use the domain and date: `qa-report-myapp-com-2026-03-12.md`
+
+## Important Rules
+
+1. **Repro is everything.** Every issue needs at least one screenshot. No exceptions.
+2. **Verify before documenting.** Retry the issue once to confirm it's reproducible, not a fluke.
+3. **Never include credentials.** Write `[REDACTED]` for passwords in repro steps.
+4. **Write incrementally.** Append each issue to the report as you find it. Don't batch.
+5. **Never read source code.** Test as a user, not a developer.
+6. **Check console after every interaction.** JS errors that don't surface visually are still bugs.
+7. **Test like a user.** Use realistic data. Walk through complete workflows end-to-end.
+8. **Depth over breadth.** 5-10 well-documented issues with evidence > 20 vague descriptions.
+9. **Never delete output files.** Screenshots and reports accumulate — that's intentional.
+10. **Use `snapshot -C` for tricky UIs.** Finds clickable divs that the accessibility tree misses.
+
+## When to Use It
+
+Use `/qa` when:
+
+- You just finished coding on a feature branch and want to verify it works (diff-aware mode)
+- You want systematic exploration of an entire app (full mode)
+- You need a quick smoke test (quick mode)
+- You want to track quality over time (regression mode)
+
+**Do not use it when:**
+
+- You need interactive testing with manual control (use `/browse` instead)
+- You haven't imported cookies for authenticated pages (use `/setup-browser-cookies` first)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Browse" icon="browser" href="/skills/browse">
+    Interactive browser testing with manual control
+  </Card>
+  <Card title="Setup Browser Cookies" icon="cookie" href="/skills/setup-browser-cookies">
+    Import real browser sessions for authenticated testing
+  </Card>
+</CardGroup>

@@ -1,0 +1,227 @@
+---
+title: "/review"
+description: "Pre-landing PR review for structural issues that tests don't catch"
+---
+
+## Overview
+
+The `/review` command analyzes your current branch's diff against main for structural issues that automated tests don't catch. It checks for SQL safety, LLM trust boundary violations, conditional side effects, and more.
+
+## When to use
+
+Run `/review` before merging:
+- After implementing a feature on a branch
+- Before creating a PR
+- As part of your pre-ship checklist
+
+<Note>
+  This is a **read-only** review by default. It only modifies files if you explicitly choose "Fix it now" on a critical issue.
+</Note>
+
+## Syntax
+
+```bash
+/review
+```
+
+No arguments required. Automatically detects your current branch and diffs against `origin/main`.
+
+## What it checks for
+
+The review runs in two passes:
+
+### Pass 1: CRITICAL
+
+**SQL & Data Safety**
+- Unsafe SQL (string interpolation, user input in queries)
+- Missing transactions around multi-step mutations
+- Destructive migrations without safety checks
+- Missing indexes on new query patterns
+
+**LLM Output Trust Boundary**
+- LLM outputs used in `eval()`, `system()`, `exec()`, SQL
+- Unsanitized LLM content rendered as HTML
+- LLM-generated file paths used without validation
+- Shell commands built from LLM strings
+
+### Pass 2: INFORMATIONAL
+
+**Conditional Side Effects**
+- Side effects (DB writes, API calls, emails) inside conditionals without explicit error paths
+- Background jobs enqueued conditionally without "what if this branch isn't taken?" handling
+
+**Magic Numbers & String Coupling**
+- Hardcoded IDs, statuses, roles (should be constants)
+- String matching for control flow (should be enums/symbols)
+
+**Dead Code & Consistency**
+- Commented-out code in the diff
+- Unused variables/methods introduced
+- Inconsistent error handling patterns
+
+**LLM Prompt Issues**
+- Prompt changes without corresponding eval updates
+- Missing few-shot examples for new output formats
+
+**Test Gaps**
+- New public methods without tests
+- New routes without request specs
+- Critical paths untested
+
+**View/Frontend**
+- Missing CSRF tokens in new forms
+- User input rendered without escaping
+- Accessibility issues (missing labels, alt text)
+
+## Greptile integration
+
+If a PR exists, `/review` fetches and triages Greptile review comments:
+
+### Classification
+
+- **VALID & ACTIONABLE** — Real issue, needs fixing
+- **VALID BUT ALREADY FIXED** — Caught it, already resolved
+- **FALSE POSITIVE** — Greptile is wrong
+- **SUPPRESSED** — Known FP from previous triage
+
+### What happens
+
+**VALID & ACTIONABLE:** Included in CRITICAL findings → same AskUserQuestion flow (Fix now / Acknowledge / False positive)
+
+**FALSE POSITIVE:** AskUserQuestion with options:
+- A) Reply to Greptile explaining the FP (recommended)
+- B) Fix it anyway (if trivial)
+- C) Ignore
+
+If you choose A, posts reply to PR and saves pattern to `~/.gstack/greptile-history.md`.
+
+**VALID BUT ALREADY FIXED:** Auto-replies: "Good catch — already fixed in `<commit-sha>`." Saves to history.
+
+**SUPPRESSED:** Skipped silently (known FPs).
+
+<Note>
+  Greptile integration is additive. If no PR exists or `gh` fails, the review works without it.
+</Note>
+
+## Example output
+
+```markdown
+Pre-Landing Review: 3 issues (1 critical, 2 informational)
++ 2 Greptile comments (1 valid, 1 FP)
+
+## CRITICAL
+
+### Issue 1: SQL Injection Risk
+File: app/services/search_service.rb:42
+
+Problem:
+  User input interpolated into SQL:
+  `User.where("name LIKE '%#{params[:query]}%'")`
+
+Recommendation: Use parameterized query
+  `User.where("name LIKE ?", "%#{params[:query]}%")`
+
+Options:
+  A) Fix it now (recommended)
+  B) Acknowledge and ship anyway
+  C) False positive — skip
+
+We recommend A: Fix it now. SQL injection is a security vulnerability.
+User input should never be interpolated directly into SQL strings.
+
+[Waits for response]
+
+## INFORMATIONAL
+
+### Issue 2: Magic String
+File: app/models/subscription.rb:18
+
+Problem:
+  if status == "active"
+
+Recommendation: Use constant
+  STATUS_ACTIVE = "active"
+  if status == STATUS_ACTIVE
+
+### Issue 3: Missing Test
+File: app/controllers/billing_controller.rb:25
+
+Problem: New #refund action has no request spec
+
+Recommendation: Add test/requests/billing_controller_test.rb
+
+## Greptile Comments
+
+**VALID:**
+- Missing error handling in payment webhook (app/controllers/webhooks.rb:15)
+  → Included in CRITICAL findings above
+
+**FALSE POSITIVE:**
+- "Unused variable `user`" — actually used in view (Greptile missed ERB context)
+```
+
+## Output format
+
+**If CRITICAL issues found:**
+1. Output all findings (critical + informational)
+2. For EACH critical issue: separate `AskUserQuestion`
+3. After all responses: summary of user choices
+4. If user chose "Fix it now" on any: apply fixes
+
+**If only informational issues found:**
+Output findings. No action needed.
+
+**If no issues found:**
+`Pre-Landing Review: No issues found.`
+
+## Suppressions
+
+The checklist includes "DO NOT flag" rules for known false positives:
+- Intentional string interpolation in test factories
+- Admin-only destructive actions (with proper auth)
+- Certain legacy patterns being gradually refactored
+
+These are never flagged.
+
+## Tips for best results
+
+<AccordionGroup>
+  <Accordion title="Run before creating PR">
+    Catch issues before pushing. Saves review round-trips.
+  </Accordion>
+
+  <Accordion title="Fix critical issues immediately">
+    SQL injection, LLM trust boundary violations, missing transactions
+    are security/data integrity risks. Choose "Fix it now."
+  </Accordion>
+
+  <Accordion title="Use informational findings as learning">
+    These aren't blockers, but they improve code quality. Consider
+    fixing them before merge.
+  </Accordion>
+
+  <Accordion title="Triage Greptile false positives">
+    Replying to FPs trains Greptile and helps the team. Your triage
+    is saved to `~/.gstack/greptile-history.md` for future runs.
+  </Accordion>
+</AccordionGroup>
+
+## Important rules
+
+- **Read the FULL diff before commenting** — Don't flag issues already fixed in the diff
+- **Read-only by default** — Only modifies files if you choose "Fix it now"
+- **Never commits, pushes, or creates PRs** — You control those actions
+- **Be terse** — One line problem, one line fix, no preamble
+- **Only flag real problems** — Skip anything that's fine
+
+## Files used
+
+- `.claude/skills/review/checklist.md` — Review rules (required)
+- `.claude/skills/review/greptile-triage.md` — Greptile integration (optional)
+- `~/.gstack/greptile-history.md` — Triage history (created if needed)
+
+## Related commands
+
+- [`/ship`](/commands/ship) — Full ship workflow (includes review as Step 3.5)
+- [`/plan-eng-review`](/commands/plan-eng-review) — Review plans before implementation
+- [`/plan-ceo-review`](/commands/plan-ceo-review) — Challenge premises and scope

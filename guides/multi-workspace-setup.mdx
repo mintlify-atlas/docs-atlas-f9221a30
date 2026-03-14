@@ -1,0 +1,137 @@
+---
+title: Multi-Workspace Setup with Conductor
+description: Run 10+ parallel gstack sessions with isolated browser instances
+---
+
+## Overview
+
+gstack is powerful with one Claude Code session. It is **transformative with ten**.
+
+[Conductor](https://conductor.build) runs multiple Claude Code sessions in parallel — each in its own isolated workspace. That means you can have one session running `/qa` on staging, another doing `/review` on a PR, a third implementing a feature, and seven more working on other branches. All at the same time.
+
+## What is Conductor?
+
+Conductor is a workspace orchestrator for Claude Code. It manages multiple parallel Claude Code sessions, each in its own git worktree with complete isolation. Think of it as "tmux for AI agents."
+
+## Why Use It with gstack?
+
+gstack gives you specialized cognitive modes — founder taste, engineering rigor, paranoid review, QA testing. Conductor lets you run all of them simultaneously:
+
+- Session 1: `/plan-ceo-review` for a new feature
+- Session 2: `/review` on an open PR
+- Session 3: `/ship` to land a finished branch
+- Session 4: `/qa` testing staging
+- Session 5-10: Building different features in parallel
+
+**One person, ten parallel agents, each with the right cognitive mode for its task.** That is not incremental improvement. That is a different way of building software.
+
+## How gstack Works with Multiple Workspaces
+
+Each Conductor workspace is a separate git worktree. gstack automatically detects this and ensures complete isolation:
+
+### Isolated Browser Instances
+
+Each workspace gets its own isolated browser instance automatically:
+
+- **Separate Chromium process** — No shared state between workspaces
+- **Independent cookies** — Different sessions, different auth states
+- **Per-workspace tabs** — Browser state lives in `.gstack/` inside each project root
+- **Dedicated logs** — Debug output isolated per workspace
+- **No port collisions** — Browser daemon binds to workspace-specific ports
+- **No configuration needed** — Works automatically, zero setup
+
+`/browse` and `/qa` sessions **never interfere with each other**, even across ten parallel workspaces. One workspace can be testing staging.myapp.com while another tests localhost:3000, with completely separate cookie jars and session state.
+
+### State Isolation
+
+All gstack state lives in `.gstack/` inside each workspace:
+
+```
+project/
+├── .gstack/
+│   ├── browser-session/        # Chromium user data dir
+│   ├── qa-reports/             # QA test results
+│   ├── greptile-history.md     # False positive tracking
+│   └── cookies/                # Imported browser cookies
+```
+
+Every workspace maintains its own:
+- Browser cookies and localStorage
+- QA report history
+- Greptile false positive database
+- Cookie import state
+
+## Real Workflow: 10 Parallel Agents
+
+This is the setup I use:
+
+<Steps>
+  <Step title="Install Conductor">
+    Get Conductor from [conductor.build](https://conductor.build)
+  </Step>
+  
+  <Step title="Install gstack globally">
+    ```bash
+    git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
+    cd ~/.claude/skills/gstack
+    ./setup
+    ```
+  </Step>
+  
+  <Step title="Configure your project">
+    Add gstack section to your project's `CLAUDE.md` listing available skills
+  </Step>
+  
+  <Step title="Launch parallel sessions">
+    Create 10 Conductor workspaces, each with a different task:
+    - **Workspace 1**: Implementing new feature A
+    - **Workspace 2**: `/review` on PR #47
+    - **Workspace 3**: `/qa` on staging environment
+    - **Workspace 4**: Implementing feature B
+    - **Workspace 5**: `/retro` for the week
+    - **Workspace 6**: `/browse` debugging production issue
+    - **Workspace 7-10**: More feature development
+  </Step>
+</Steps>
+
+## Different Cognitive Modes
+
+The power comes from using the right mode for each task:
+
+| Workspace | Skill | Mode | Task |
+|-----------|-------|------|------|
+| 1 | `/plan-ceo-review` | Founder | Rethink the product direction |
+| 2 | `/plan-eng-review` | Eng Lead | Lock in architecture and edge cases |
+| 3 | `/review` | Staff Engineer | Find bugs that pass CI |
+| 4 | `/ship` | Release Engineer | Land the PR |
+| 5 | `/qa` | QA Lead | Test affected pages |
+| 6 | `/browse` | QA Engineer | Manual testing with screenshots |
+| 7 | `/retro` | Eng Manager | Weekly retrospective |
+
+## Conductor Lifecycle Hooks
+
+Conductor automatically manages gstack setup through `conductor.json`:
+
+```json
+{
+  "setup": "bin/dev-setup",
+  "archive": "bin/dev-teardown"
+}
+```
+
+When Conductor creates a new workspace:
+1. Copies `.env` from main worktree (API keys carry over)
+2. Runs `bun install`
+3. Symlinks skills for dev mode
+4. Creates isolated `.gstack/` directory
+
+When archiving a workspace:
+1. Removes skill symlinks
+2. Cleans up `.claude/` directory
+3. Preserves `.gstack/` for history
+
+## No Configuration Needed
+
+**Just works.** No port configuration, no browser profiles to manage, no cookie conflicts to debug. Each workspace is completely independent from the moment Conductor creates it.
+
+Learn more at [conductor.build](https://conductor.build)

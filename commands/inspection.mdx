@@ -1,0 +1,220 @@
+---
+title: Inspection Commands
+description: Commands for inspecting page state, executing JavaScript, and monitoring browser events
+---
+
+Inspection commands allow you to examine page state, execute JavaScript, check element properties, and monitor browser events like console logs and network requests.
+
+## JavaScript Execution
+
+<ParamField path="js" type="command">
+  Run JavaScript expression
+  
+  **Usage:** `js <expr>`
+  
+  **Description:** Executes a JavaScript expression in the page context and returns the result as a string.
+  
+  **Examples:**
+  ```bash
+  js document.title
+  js window.location.pathname
+  js document.querySelectorAll('button').length
+  js localStorage.getItem('token')
+  js JSON.stringify({foo: 'bar'})
+  ```
+</ParamField>
+
+<ParamField path="eval" type="command">
+  Run JavaScript from file
+  
+  **Usage:** `eval <file>`
+  
+  **Description:** Executes JavaScript code from a file and returns the result as a string. The file path must be under /tmp or the current working directory.
+  
+  **Examples:**
+  ```bash
+  eval /tmp/script.js
+  eval ./analyze.js
+  ```
+</ParamField>
+
+## Element Inspection
+
+<ParamField path="css" type="command">
+  Get computed CSS value
+  
+  **Usage:** `css <sel> <prop>`
+  
+  **Description:** Returns the computed CSS property value for an element.
+  
+  **Examples:**
+  ```bash
+  css .header background-color
+  css #main display
+  css button:first-child color
+  css @e123 opacity
+  ```
+</ParamField>
+
+<ParamField path="attrs" type="command">
+  Get element attributes as JSON
+  
+  **Usage:** `attrs <sel|@ref>`
+  
+  **Description:** Returns all attributes of an element as a JSON object.
+  
+  **Examples:**
+  ```bash
+  attrs input[type="email"]
+  attrs #submit-btn
+  attrs @e123
+  ```
+  
+  **Sample output:**
+  ```json
+  {
+    "id": "email",
+    "type": "email",
+    "name": "email",
+    "required": "",
+    "placeholder": "Enter your email"
+  }
+  ```
+</ParamField>
+
+<ParamField path="is" type="command">
+  Check element state
+  
+  **Usage:** `is <prop> <sel>`
+  
+  **Description:** Checks if an element matches a specific state: visible, hidden, enabled, disabled, checked, editable, or focused.
+  
+  **Examples:**
+  ```bash
+  is visible .modal
+  is enabled #submit-btn
+  is checked input[type="checkbox"]
+  is focused input[name="email"]
+  is hidden .error-message
+  ```
+  
+  **Returns:** `true` or `false`
+</ParamField>
+
+## Browser Events
+
+<ParamField path="console" type="command">
+  Get console messages
+  
+  **Usage:** `console [--clear|--errors]`
+  
+  **Description:** Returns console messages captured since the last clear. Use `--errors` to filter to only errors and warnings, or `--clear` to clear the message buffer.
+  
+  **Examples:**
+  ```bash
+  console
+  console --errors
+  console --clear
+  ```
+</ParamField>
+
+<ParamField path="network" type="command">
+  Get network requests
+  
+  **Usage:** `network [--clear]`
+  
+  **Description:** Returns captured network requests with URLs, methods, and status codes. Use `--clear` to clear the request buffer.
+  
+  **Examples:**
+  ```bash
+  network
+  network --clear
+  ```
+</ParamField>
+
+<ParamField path="dialog" type="command">
+  Get dialog messages
+  
+  **Usage:** `dialog [--clear]`
+  
+  **Description:** Returns captured dialog messages (alerts, confirms, prompts). Use `--clear` to clear the buffer.
+  
+  **Examples:**
+  ```bash
+  dialog
+  dialog --clear
+  ```
+</ParamField>
+
+## State & Storage
+
+<ParamField path="cookies" type="command">
+  Get all cookies as JSON
+  
+  **Description:** Returns all cookies for the current page as a JSON array.
+  
+  **Examples:**
+  ```bash
+  cookies
+  ```
+</ParamField>
+
+<ParamField path="storage" type="command">
+  Read or write browser storage
+  
+  **Usage:** `storage [set k v]`
+  
+  **Description:** Returns all localStorage and sessionStorage as JSON. To write to localStorage, use `storage set <key> <value>`.
+  
+  **Examples:**
+  ```bash
+  storage
+  storage set theme dark
+  storage set user.preferences '{"lang":"en"}'
+  ```
+</ParamField>
+
+<ParamField path="perf" type="command">
+  Get page load timings
+  
+  **Description:** Returns performance timing metrics for the page load.
+  
+  **Examples:**
+  ```bash
+  perf
+  ```
+</ParamField>
+
+## Common Patterns
+
+### Check element visibility before interaction
+```bash
+is visible #submit-btn
+click #submit-btn
+```
+
+### Debug JavaScript state
+```bash
+js window.appState
+js document.querySelector('.user-menu').dataset.userId
+```
+
+### Monitor errors during interaction
+```bash
+console --clear
+click #submit
+console --errors
+```
+
+### Inspect element properties
+```bash
+attrs button.primary
+css button.primary background-color
+is enabled button.primary
+```
+
+### Check storage state
+```bash
+storage
+cookies
+```

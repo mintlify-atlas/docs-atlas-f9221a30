@@ -1,0 +1,201 @@
+---
+title: "/browse"
+description: "Natural language browser automation"
+---
+
+## Overview
+
+The `/browse` command translates natural language descriptions into browser automation commands. Tell it what to do in plain English, and it executes the right sequence of browser commands.
+
+## When to use
+
+Use `/browse` when:
+- You want to interact with a website naturally
+- You need to automate a multi-step workflow
+- You're testing user flows
+- You want to avoid writing explicit browser commands
+
+## Syntax
+
+```bash
+/browse <description of what to do>
+```
+
+**Examples:**
+```bash
+/browse Go to github.com and search for "gstack"
+/browse Fill out the contact form and submit it
+/browse Navigate to the pricing page and take a screenshot
+/browse Click the login button, enter credentials, and sign in
+```
+
+## How it works
+
+1. **Parse intent:** Understands what you want to do
+2. **Translate to commands:** Maps your description to specific browser commands (goto, click, fill, snapshot, etc.)
+3. **Execute:** Runs the command sequence
+4. **Verify:** Checks the outcome and reports back
+
+## Example sessions
+
+### Search and navigate
+```markdown
+User: /browse Go to hacker news and click the first story
+
+Assistant:
+✓ goto https://news.ycombinator.com
+✓ snapshot -i (finding links)
+✓ click @e0 (first story link)
+✓ snapshot -a -o hn-story.png
+
+Now viewing: [Story title]
+```
+
+### Form filling
+```markdown
+User: /browse Fill out the signup form with test data
+
+Assistant:
+✓ snapshot -i (finding form fields)
+✓ fill @e3 "test@example.com"
+✓ fill @e4 "Test User"
+✓ fill @e5 "SecurePass123"
+✓ click @e6 (submit button)
+✓ snapshot -D (showing changes)
+
+Form submitted. Confirmation message visible.
+```
+
+### Multi-step workflow
+```markdown
+User: /browse Log into the admin panel, navigate to users, and export the CSV
+
+Assistant:
+✓ goto https://app.example.com/admin
+✓ fill @e1 "admin@example.com"
+✓ fill @e2 "[REDACTED]"
+✓ click @e3 (login)
+✓ goto https://app.example.com/admin/users
+✓ click @e12 (Export CSV button)
+✓ wait 2000 (download starting)
+
+CSV download initiated.
+```
+
+## What commands it uses
+
+`/browse` can execute any browser command under the hood:
+
+- **Navigation:** `goto`, `back`, `forward`, `reload`
+- **Interaction:** `click`, `fill`, `press`, `hover`
+- **Inspection:** `snapshot`, `links`, `console`, `screenshot`
+- **State:** `cookie-import`, `cookie-export`, `viewport`
+- **Waiting:** `wait`, `wait-for`
+
+See [browser commands reference](/browser/commands) for full command details.
+
+## Credentials and security
+
+<Warning>
+  **Never include real passwords in your browse command.** The assistant will redact them in output, but avoid typing them in plain text.
+</Warning>
+
+**Better approaches:**
+1. Use `/setup-browser-cookies` to import authentication cookies
+2. Use environment variables for credentials
+3. Let the assistant prompt you for sensitive data
+
+## Natural language flexibility
+
+You can phrase commands however feels natural:
+
+✓ "Go to example.com"
+✓ "Navigate to example.com"
+✓ "Open example.com in the browser"
+
+✓ "Click the login button"
+✓ "Press the login button"
+✓ "Hit the login button"
+
+✓ "Fill out the email field with test@example.com"
+✓ "Enter test@example.com in the email box"
+✓ "Type test@example.com into email"
+
+The assistant understands intent, not specific phrasing.
+
+## Error handling
+
+If a step fails (element not found, page doesn't load, timeout), the assistant:
+1. Reports what went wrong
+2. Shows the current page state
+3. Suggests next steps or alternatives
+
+**Example:**
+```markdown
+User: /browse Click the logout button
+
+Assistant:
+✗ Element not found: No logout button visible
+
+Current page: https://app.example.com/dashboard
+
+Visible interactive elements:
+  @e0 - Profile menu
+  @e1 - Settings
+  @e2 - Notifications
+
+Did you mean to click the profile menu first? (logout may be in dropdown)
+```
+
+## Tips for best results
+
+<AccordionGroup>
+  <Accordion title="Be specific about target elements">
+    Instead of: "Click the button"
+    Say: "Click the blue submit button at the bottom"
+    
+    Helps when multiple similar elements exist.
+  </Accordion>
+
+  <Accordion title="Break complex workflows into steps">
+    For multi-page flows, you can give one command per step or describe
+    the full workflow. Both work:
+    
+    Single command:
+    `/browse Go to pricing, click enterprise plan, fill contact form, submit`
+    
+    Multi-command:
+    `/browse Go to pricing`
+    `/browse Click enterprise plan`
+    `/browse Fill out the contact form`
+  </Accordion>
+
+  <Accordion title="Use /setup-browser-cookies for auth">
+    For authenticated flows, import cookies first:
+    
+    `/setup-browser-cookies example.com`
+    `/browse Navigate to dashboard and export report`
+  </Accordion>
+
+  <Accordion title="Check console errors">
+    Add "and check for errors" to your command:
+    
+    `/browse Submit the form and check for console errors`
+  </Accordion>
+</AccordionGroup>
+
+## Differences from direct browser commands
+
+| Aspect | `/browse` | Direct commands |
+|--------|-----------|----------------|
+| Input | Natural language | Specific command syntax |
+| Flexibility | High (many ways to say same thing) | Low (exact syntax required) |
+| Element selection | Automatic (finds elements for you) | Manual (you specify @eN) |
+| Error recovery | Suggests alternatives | Reports error only |
+| Use case | Quick workflows, exploration | Precise automation, scripts |
+
+## Related commands
+
+- [Browser commands](/browser/commands) — Direct command reference (goto, click, fill, snapshot, etc.)
+- [`/qa`](/commands/qa) — Systematic QA testing with browser
+- [`/setup-browser-cookies`](/commands/setup-browser-cookies) — Import auth cookies

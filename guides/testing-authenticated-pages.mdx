@@ -1,0 +1,292 @@
+---
+title: Testing Authenticated Pages
+description: Import browser cookies to test pages behind login
+---
+
+## Overview
+
+Before `/qa` or `/browse` can test authenticated pages, they need cookies. Instead of manually logging in through the headless browser every time, `/setup-browser-cookies` imports your real sessions directly from your daily browser.
+
+## The Problem
+
+Headless browser testing typically requires:
+1. Opening the browser
+2. Navigating to login page
+3. Filling username/password
+4. Handling 2FA or OAuth flows
+5. Waiting for redirects
+
+This is slow, brittle, and doesn't work for SSO or OAuth-only apps.
+
+## The Solution
+
+Import cookies from your real browser session:
+
+```bash
+You:   /setup-browser-cookies staging.myapp.com
+
+Claude: Imported 12 cookies for staging.myapp.com from Chrome.
+```
+
+Now `/qa` and `/browse` can access authenticated pages immediately.
+
+## How to Use
+
+### Basic Import
+
+Import cookies for a specific domain:
+
+```bash
+/setup-browser-cookies github.com
+```
+
+gstack auto-detects your installed browser, decrypts cookies, and loads them into the Playwright session.
+
+### Interactive Picker
+
+Launch a UI to select domains visually:
+
+```bash
+You:   /setup-browser-cookies
+
+Claude: Cookie picker opened — select the domains you want to import
+        in your browser, then tell me when you're done.
+
+        [A browser window opens with a list of domains]
+        [You check: github.com, staging.myapp.com, myapp.com]
+
+You:    done
+
+Claude: Imported 3 domains (47 cookies). Session is ready.
+```
+
+The picker shows domain names only — **cookie values are never displayed** for security.
+
+### Multiple Domains
+
+Import several domains at once:
+
+```bash
+/setup-browser-cookies github.com myapp.com staging.myapp.com
+```
+
+## Workflow: Import → Test
+
+<Steps>
+  <Step title="Import cookies">
+    ```bash
+    /setup-browser-cookies staging.myapp.com
+    ```
+    
+    Imports your session from your daily browser
+  </Step>
+  
+  <Step title="Test authenticated pages">
+    ```bash
+    /qa https://staging.myapp.com
+    ```
+    
+    Or:
+    
+    ```bash
+    /browse staging.myapp.com/dashboard — verify the new metrics widget
+    ```
+    
+    The browser is now authenticated and can access protected pages
+  </Step>
+  
+  <Step title="Verify auth state">
+    ```bash
+    You:   /browse goto https://staging.myapp.com/dashboard
+    
+    Claude: > browse goto https://staging.myapp.com/dashboard
+            > browse screenshot /tmp/dashboard.png
+            > Read /tmp/dashboard.png
+            
+            Dashboard loads. User menu shows "alice@myapp.com" — session active.
+    ```
+  </Step>
+</Steps>
+
+## Which Browsers Are Supported
+
+gstack auto-detects and supports:
+
+- **Comet** (Chromium-based)
+- **Chrome**
+- **Arc** (Chromium-based)
+- **Brave**
+- **Microsoft Edge**
+
+All Chromium-based browsers store cookies in the same SQLite format. gstack reads the database directly and decrypts cookies using the macOS Keychain.
+
+### Auto-Detection
+
+gstack checks for browsers in this order:
+1. Comet
+2. Chrome
+3. Arc
+4. Brave
+5. Edge
+
+It uses the first one it finds. If you have multiple browsers installed and want to specify which one to use, the skill will use your default Chromium-based browser.
+
+## Interactive Picker vs Direct Import
+
+### Use Interactive Picker When:
+
+- You're not sure which domains you need
+- You want to import multiple domains at once
+- You want a visual selection interface
+- You're testing a new app and exploring session state
+
+### Use Direct Import When:
+
+- You know the exact domain
+- You're scripting or automating
+- You want speed (no UI interaction)
+- You're importing a single well-known domain
+
+## Security Notes
+
+### First Import: Keychain Prompt
+
+The first time you import cookies from a browser, macOS Keychain prompts for permission:
+
+```
+"browse" wants to access your Chrome Safe Storage keyring.
+Enter your password to allow this.
+
+[Cancel] [Deny] [Allow] [Always Allow]
+```
+
+Click **"Always Allow"** to avoid repeated prompts.
+
+### Cookie Storage
+
+Imported cookies are stored in `.gstack/cookies/` inside your project. This directory is:
+
+- **Gitignored by default** — Never committed to version control
+- **Workspace-isolated** — Each Conductor workspace has independent cookies
+- **Ephemeral** — Can be deleted anytime; just re-import
+
+### Session State
+
+The browser daemon runs persistently. Cookies, localStorage, and session state carry over between commands:
+
+- **Good:** No need to re-import cookies for every `/browse` call
+- **Bad:** Be careful when testing production environments
+
+The session auto-shuts down after **30 minutes of idle time**.
+
+## Examples
+
+### Example 1: QA Staging Environment
+
+```bash
+You:   /setup-browser-cookies staging.myapp.com
+
+Claude: Imported 8 cookies for staging.myapp.com from Chrome.
+
+You:   /qa https://staging.myapp.com --quick
+
+Claude: [Smoke test: homepage + 5 pages, 30 seconds]
+        Health Score: 91/100. No critical issues. 1 medium: mobile nav overlap.
+```
+
+### Example 2: GitHub PR Review
+
+```bash
+You:   /setup-browser-cookies github.com
+
+Claude: Imported 12 cookies for github.com from Comet.
+
+You:   /browse github.com/myorg/myrepo/pull/47 — read the Greptile comments
+
+Claude: > browse goto https://github.com/myorg/myrepo/pull/47
+        > browse snapshot -i
+        > browse text
+        
+        Greptile left 3 comments:
+        1. Race condition in payment_service.rb:47
+        2. Missing null check in user.rb:12  
+        3. Token comparison in auth.rb:88
+```
+
+### Example 3: Local Development with Auth
+
+```bash
+You:   /setup-browser-cookies localhost
+
+Claude: Imported 3 cookies for localhost from Chrome.
+
+You:   /qa
+
+Claude: Analyzing branch diff against main...
+        12 files changed: 3 controllers, 2 views, 4 services, 3 tests
+        
+        Affected routes: /dashboard, /settings, /api/user
+        Detected app running on localhost:3000.
+        
+        [Tests each affected page with imported session]
+        
+        QA Report: 3 routes tested, all working.
+        - /dashboard: metrics widget renders correctly
+        - /settings: new billing tab appears
+        - /api/user: returns 200 with expected shape
+```
+
+## Troubleshooting
+
+### "No browsers found"
+
+Make sure you have a Chromium-based browser installed:
+- Chrome: https://www.google.com/chrome/
+- Arc: https://arc.net/
+- Brave: https://brave.com/
+
+### "Permission denied" on cookie database
+
+The browser must be closed for gstack to read its cookie database. Close all browser windows and try again.
+
+### Cookies not working after import
+
+Check:
+1. Domain matches exactly (including subdomain)
+2. Cookies haven't expired
+3. Session is still valid in your real browser
+
+You can verify by opening the URL in your real browser first.
+
+### Session lost after 30 minutes
+
+The browser daemon auto-shuts down after idle timeout. Just re-import:
+
+```bash
+/setup-browser-cookies staging.myapp.com
+```
+
+Cookies re-import in ~1 second.
+
+## When to Re-Import
+
+Re-import cookies when:
+
+- Session expires (401 errors during `/browse` or `/qa`)
+- You log out and back in to your real browser
+- You switch to a different user account
+- Cookies change (new features, different permissions)
+- Browser daemon restarts after idle timeout
+
+## Best Practices
+
+1. **Import before QA**: Always run `/setup-browser-cookies` before `/qa` on authenticated apps
+2. **Use specific domains**: `staging.myapp.com` instead of just `myapp.com` to avoid cookie leakage
+3. **One import per session**: Cookies persist across multiple `/browse` calls
+4. **Check session validity**: If you get 401s, your real browser session may have expired
+5. **Never commit `.gstack/cookies/`**: Already gitignored by default
+
+## Related Skills
+
+- [/qa](/skills/qa) — Systematic QA testing
+- [/browse](/skills/browse) — Interactive browser automation

@@ -1,0 +1,133 @@
+---
+title: Reading Commands
+description: Commands for extracting content and structure from web pages
+---
+
+Reading commands extract information from pages without modifying them. These are read-only operations that return page content in various formats.
+
+## Commands
+
+<ParamField path="text" type="command">
+  Get cleaned page text
+  
+  **Description:** Returns the visible text content of the page with formatting removed. Useful for extracting readable content or analyzing page text.
+  
+  **Examples:**
+  ```bash
+  text
+  ```
+  
+  **When to use:** Extract main content for analysis, verify text appears on page, get page text for processing.
+</ParamField>
+
+<ParamField path="html" type="command">
+  Get HTML content
+  
+  **Usage:** `html [selector]`
+  
+  **Description:** Returns the innerHTML of a specific selector, or the full page HTML if no selector is provided. Throws an error if the selector is not found.
+  
+  **Examples:**
+  ```bash
+  html
+  html .main-content
+  html #article
+  html @e123
+  ```
+  
+  **When to use:** Inspect element structure, debug layout issues, extract HTML for parsing, verify element contents.
+</ParamField>
+
+<ParamField path="links" type="command">
+  List all links on the page
+  
+  **Description:** Returns all links as "text → href" pairs. Shows the link text and destination URL for every link on the page.
+  
+  **Examples:**
+  ```bash
+  links
+  ```
+  
+  **Sample output:**
+  ```
+  Home → /
+  About → /about
+  Contact → /contact
+  GitHub → https://github.com
+  ```
+  
+  **When to use:** Find navigation options, discover available pages, verify links are correct, extract URLs for crawling.
+</ParamField>
+
+<ParamField path="forms" type="command">
+  Get form fields as JSON
+  
+  **Description:** Returns all form fields on the page with their current values, types, and attributes as structured JSON.
+  
+  **Examples:**
+  ```bash
+  forms
+  ```
+  
+  **Sample output:**
+  ```json
+  [
+    {
+      "name": "email",
+      "type": "email",
+      "value": "",
+      "required": true
+    },
+    {
+      "name": "password",
+      "type": "password",
+      "value": ""
+    }
+  ]
+  ```
+  
+  **When to use:** Understand form structure before filling, verify form fields, extract form metadata, check validation attributes.
+</ParamField>
+
+<ParamField path="accessibility" type="command">
+  Get full ARIA accessibility tree
+  
+  **Description:** Returns the complete accessibility tree showing how assistive technologies perceive the page. Includes ARIA roles, labels, and semantic structure.
+  
+  **Examples:**
+  ```bash
+  accessibility
+  ```
+  
+  **When to use:** Debug accessibility issues, verify ARIA attributes, understand semantic structure, test screen reader compatibility.
+</ParamField>
+
+## Common Patterns
+
+### Extract page content
+```bash
+goto https://example.com
+text
+```
+
+### Inspect specific element HTML
+```bash
+html .error-message
+html #login-form
+```
+
+### Discover navigation structure
+```bash
+links
+```
+
+### Analyze form before filling
+```bash
+forms
+fill input[name="email"] user@example.com
+```
+
+### Verify accessibility
+```bash
+accessibility
+```

@@ -1,0 +1,236 @@
+---
+title: Server Commands
+description: Commands for managing the browser server lifecycle and snapshots
+---
+
+Server commands control the browser server lifecycle and provide access to the snapshot system for element selection.
+
+## Server Lifecycle
+
+<ParamField path="status" type="command">
+  Health check
+  
+  **Description:** Returns the server status and health information. Use this to verify the browser server is running correctly.
+  
+  **Examples:**
+  ```bash
+  status
+  ```
+  
+  **Returns:** Server version, status, and active connections
+</ParamField>
+
+<ParamField path="stop" type="command">
+  Shutdown server
+  
+  **Description:** Gracefully shuts down the browser server and closes all tabs.
+  
+  **Examples:**
+  ```bash
+  stop
+  ```
+  
+  **Warning:** This will close all browser tabs and end the session.
+</ParamField>
+
+<ParamField path="restart" type="command">
+  Restart server
+  
+  **Description:** Restarts the browser server. All tabs are closed and a fresh browser instance is started.
+  
+  **Examples:**
+  ```bash
+  restart
+  ```
+  
+  **Use cases:** Clear all state, recover from errors, start fresh session
+</ParamField>
+
+## Snapshot System
+
+<ParamField path="snapshot" type="command">
+  Generate accessibility tree with element references
+  
+  **Usage:** `snapshot [flags]`
+  
+  **Description:** Generates an accessibility tree representation of the page with `@e` refs for element selection. This is the primary way to get element references for use with other commands.
+  
+  **Flags:**
+  - `-i` - Interactive elements only (clickable, focusable, inputs)
+  - `-c` - Compact format (minimal whitespace)
+  - `-d N` - Depth limit (e.g., `-d 3` for max depth of 3)
+  - `-s sel` - Scope to specific selector
+  - `-D` - Diff vs previous snapshot
+  - `-a` - Annotated screenshot with element highlights
+  - `-o path` - Output to file
+  - `-C` - Cursor-interactive elements get `@c` refs
+  
+  **Examples:**
+  ```bash
+  # Full tree
+  snapshot
+  
+  # Interactive elements only
+  snapshot -i
+  
+  # Compact format with depth limit
+  snapshot -i -c -d 3
+  
+  # Scope to specific area
+  snapshot -s .main-content
+  
+  # Show what changed
+  snapshot -D
+  
+  # Visual reference with annotations
+  snapshot -a -o annotated.png
+  
+  # Cursor-interactive only
+  snapshot -C
+  ```
+  
+  **Sample output:**
+  ```
+  [1] banner
+    [2] link "Home" @e1
+    [3] link "About" @e2
+  [4] main
+    [5] heading "Welcome"
+    [6] button "Get Started" @e3
+  ```
+</ParamField>
+
+<ParamField path="chain" type="command">
+  Run commands from JSON stdin
+  
+  **Usage:** `chain`
+  
+  **Description:** Executes multiple commands from JSON input. The format is an array of command arrays: `[["cmd","arg1",...],...]`
+  
+  **Examples:**
+  ```bash
+  echo '[["goto","https://example.com"],["text"]]' | chain
+  ```
+  
+  **Input format:**
+  ```json
+  [
+    ["goto", "https://example.com"],
+    ["wait", ".content"],
+    ["text"]
+  ]
+  ```
+  
+  **Use cases:** Scripting, batch operations, programmatic control
+</ParamField>
+
+## Snapshot Workflow
+
+The snapshot system is central to how you select and interact with elements:
+
+### 1. Generate snapshot
+```bash
+snapshot -i
+```
+
+This shows interactive elements with `@e` references:
+```
+[1] button "Login" @e1
+[2] link "Sign up" @e2
+[3] input "email" @e3
+```
+
+### 2. Use references in commands
+```bash
+fill @e3 user@example.com
+click @e1
+```
+
+### 3. Check changes
+```bash
+snapshot -D
+```
+
+Shows what changed since the last snapshot.
+
+## Common Patterns
+
+### Health check
+```bash
+status
+```
+
+### Fresh start
+```bash
+restart
+goto https://example.com
+```
+
+### Interactive element selection
+```bash
+goto https://example.com
+snapshot -i
+# Use @e refs from output
+click @e5
+```
+
+### Visual debugging
+```bash
+snapshot -a -o debug.png
+# Creates annotated screenshot showing all @e refs
+```
+
+### Focused inspection
+```bash
+# Only show form elements
+snapshot -s form -i
+
+# Only show navigation
+snapshot -s nav -i -c
+```
+
+### Track changes during interaction
+```bash
+snapshot -i
+click button.load-more
+wait --networkidle
+snapshot -D
+# Shows elements that appeared/changed
+```
+
+### Batch operations via chain
+```bash
+cat commands.json | chain
+```
+
+where `commands.json` contains:
+```json
+[
+  ["goto", "https://example.com"],
+  ["snapshot", "-i"],
+  ["click", "@e1"],
+  ["wait", "--networkidle"],
+  ["text"]
+]
+```
+
+### Cursor-interactive elements
+```bash
+snapshot -C
+# Shows only elements that respond to cursor (hover, click)
+# Uses @c refs instead of @e
+```
+
+## Element Reference Types
+
+- `@e123` - Standard element reference (from `-i` flag)
+- `@c123` - Cursor-interactive element (from `-C` flag)
+
+Both can be used with any command that accepts a selector:
+```bash
+click @e5
+hover @c10
+fill @e3 value
+attrs @e7
+css @e2 color
+```

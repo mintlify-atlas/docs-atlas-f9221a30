@@ -1,0 +1,299 @@
+---
+title: /plan-eng-review
+description: Engineering manager mode - lock in architecture, data flow, diagrams, edge cases, and tests
+---
+
+**This is your eng manager mode.** Once the product direction is right, you want a different kind of intelligence entirely.
+
+You do not want more sprawling ideation. You want the model to become your best technical lead.
+
+## What It Nails
+
+This mode should nail:
+
+- **Architecture** - System boundaries, dependency graphs, coupling concerns
+- **Data flow** - All four paths: happy, nil, empty, error
+- **Diagrams** - Force hidden assumptions into the open
+- **Edge cases** - Double-click, navigate-away-mid-action, stale state
+- **State transitions** - What's possible, what's invalid, what prevents it
+- **Failure modes** - Timeout, race condition, nil reference, stale data
+- **Test coverage** - Map every new UX flow, data flow, codepath, and branch
+- **Trust boundaries** - Auth, data access, API surfaces
+
+## How Diagrams Force Hidden Assumptions Into the Open
+
+One surprisingly big unlock: **diagrams**.
+
+LLMs get way more complete when you force them to draw the system. Sequence diagrams, state diagrams, component diagrams, data-flow diagrams, even test matrices.
+
+**Diagrams force hand-wavy planning to become concrete.**
+
+From the README:
+
+> Diagrams force hidden assumptions into the open. They make hand-wavy planning much harder.
+
+`/plan-eng-review` produces ASCII diagrams for:
+- System architecture showing new components and relationships
+- Data flow with all four paths (happy, nil, empty, error)
+- State machines for stateful objects
+- Test coverage mapped to every new flow
+
+## Example from README
+
+Take the listing app example from `/plan-ceo-review`. After deciding to build the smart listing flow:
+
+```
+You:   /plan-eng-review
+
+Claude: [Architecture diagram, state machine for upload → classify →
+        enrich → draft pipeline, async job boundaries, failure modes,
+        test matrix]
+```
+
+Now the model answers:
+
+- What is the architecture for upload, classification, enrichment, and draft generation?
+- Which steps happen synchronously, and which go to background jobs?
+- Where are the boundaries between app server, object storage, vision model, search/enrichment APIs, and the listing database?
+- What happens if upload succeeds but enrichment fails?
+- What happens if product identification is low-confidence?
+- How do retries work?
+- How do we prevent duplicate jobs?
+- What gets persisted when, and what can be safely recomputed?
+
+And you get diagrams — architecture diagrams, state models, data-flow diagrams, test matrices.
+
+**Diagrams force hidden assumptions into the open. They make hand-wavy planning much harder.**
+
+## Step 0: Scope Challenge
+
+Before reviewing anything, the skill answers:
+
+1. **What existing code already partially or fully solves each sub-problem?** Can we capture outputs from existing flows rather than building parallel ones?
+2. **What is the minimum set of changes that achieves the stated goal?** Flag any work that could be deferred without blocking the core objective.
+3. **Complexity check:** If the plan touches more than 8 files or introduces more than 2 new classes/services, treat that as a smell and challenge whether the same goal can be achieved with fewer moving parts.
+
+Then asks if you want one of three options:
+
+1. **SCOPE REDUCTION** - The plan is overbuilt. Propose a minimal version, then review that.
+2. **BIG CHANGE** - Work through interactively, one section at a time with at most 8 top issues per section.
+3. **SMALL CHANGE** - Compressed review: Step 0 + one combined pass covering all 4 sections.
+
+**Critical:** If you do not select SCOPE REDUCTION, the skill respects that decision fully. It commits to your chosen scope and optimizes within it. No silent scope reduction.
+
+## Four Review Sections
+
+After scope is agreed:
+
+### 1. Architecture Review
+
+Evaluate:
+- Overall system design and component boundaries
+- Dependency graph and coupling concerns
+- Data flow patterns and potential bottlenecks
+- Scaling characteristics and single points of failure
+- Security architecture (auth, data access, API boundaries)
+- Whether key flows deserve ASCII diagrams in the plan or in code comments
+- For each new codepath or integration point, describe one realistic production failure scenario and whether the plan accounts for it
+
+**STOP.** For each issue found, calls `AskUserQuestion` individually. One issue per call. Only proceeds to next section after all issues resolved.
+
+### 2. Code Quality Review
+
+Evaluate:
+- Code organization and module structure
+- DRY violations — be aggressive here
+- Error handling patterns and missing edge cases (call these out explicitly)
+- Technical debt hotspots
+- Areas that are over-engineered or under-engineered
+- Existing ASCII diagrams in touched files — are they still accurate?
+
+**STOP.** For each issue, `AskUserQuestion` individually.
+
+### 3. Test Review
+
+**Make a diagram of all new UX, new data flow, new codepaths, and new branching.**
+
+For each new item in the diagram:
+- What type of test covers it? (Unit / Integration / System / E2E)
+- Does a test for it exist in the plan?
+- What is the happy path test?
+- What is the failure path test? (Be specific — which failure?)
+- What is the edge case test? (nil, empty, boundary values, concurrent access)
+
+**Test ambition check:**
+- What's the test that would make you confident shipping at 2am on a Friday?
+- What's the test a hostile QA engineer would write to break this?
+- What's the chaos test?
+
+**For LLM/prompt changes:** Check CLAUDE.md for "Prompt/LLM changes" file patterns. If this plan touches ANY of those patterns, state which eval suites must be run, which cases should be added, and what baselines to compare against.
+
+**STOP.** For each issue, `AskUserQuestion` individually.
+
+### 4. Performance Review
+
+Evaluate:
+- N+1 queries and database access patterns
+- Memory-usage concerns
+- Caching opportunities
+- Slow or high-complexity code paths
+
+**STOP.** For each issue, `AskUserQuestion` individually.
+
+## How It Asks Questions
+
+Every `AskUserQuestion` MUST:
+
+1. Present 2-3 concrete lettered options
+2. State which option you recommend FIRST
+3. Explain in 1-2 sentences WHY that option over the others
+
+**No batching multiple issues into one question.** One issue = one call.
+
+**Exception:** SMALL CHANGE mode intentionally batches one issue per section into a single question at the end — but each issue still gets its own recommendation + WHY + lettered options.
+
+**Escape hatch:** If a section has no issues, say so and move on. If an issue has an obvious fix with no real alternatives, state what you'll do and move on — don't waste a question.
+
+## Required Outputs
+
+### "NOT in scope" section
+List work that was considered and explicitly deferred, with one-line rationale each.
+
+### "What already exists" section
+List existing code/flows that already partially solve sub-problems in this plan, and whether the plan reuses them or unnecessarily rebuilds them.
+
+### TODOS.md updates
+After all review sections complete, present each potential TODO as its own individual `AskUserQuestion`. Never batch TODOs — one per question.
+
+For each TODO, describe:
+- **What:** One-line description
+- **Why:** The concrete problem it solves or value it unlocks
+- **Pros:** What you gain
+- **Cons:** Cost, complexity, or risks
+- **Context:** Enough detail that someone picking this up in 3 months understands motivation, current state, and where to start
+- **Depends on / blocked by:** Prerequisites or ordering constraints
+
+Then present options:
+- A) Add to TODOS.md
+- B) Skip — not valuable enough
+- C) Build it now in this PR instead of deferring
+
+### Diagrams
+The plan should use ASCII diagrams for any non-trivial data flow, state machine, or processing pipeline.
+
+Additionally, identify which files in the implementation should get inline ASCII diagram comments — particularly Models with complex state transitions, Services with multi-step pipelines, and Concerns with non-obvious mixin behavior.
+
+### Failure modes
+For each new codepath identified in the test review diagram, list one realistic way it could fail in production and whether:
+1. A test covers that failure
+2. Error handling exists for it
+3. The user would see a clear error or a silent failure
+
+If any failure mode has **no test AND no error handling AND would be silent**, flag it as a **critical gap**.
+
+### Completion summary
+At the end of the review, display this summary:
+
+- Step 0: Scope Challenge (user chose: ___)
+- Architecture Review: ___ issues found
+- Code Quality Review: ___ issues found
+- Test Review: diagram produced, ___ gaps identified
+- Performance Review: ___ issues found
+- NOT in scope: written
+- What already exists: written
+- TODOS.md updates: ___ items proposed to user
+- Failure modes: ___ critical gaps flagged
+
+## Engineering Preferences
+
+The skill uses these to guide recommendations:
+
+- DRY is important — flag repetition aggressively
+- Well-tested code is non-negotiable; err on the side of too many tests
+- Code should be "engineered enough" — not under-engineered (fragile, hacky) and not over-engineered (premature abstraction)
+- Err on the side of handling more edge cases, not fewer; thoughtfulness > speed
+- Bias toward explicit over clever
+- Minimal diff: achieve the goal with the fewest new abstractions and files touched
+
+## Example Session
+
+```
+You:   [after /plan-ceo-review decided on smart listing flow]
+
+You:   /plan-eng-review
+
+Claude: Step 0: Scope Challenge
+
+        Existing code check:
+        - Photo upload: app/services/attachment_service.rb already
+          handles S3 upload and thumbnail generation. Reuse this.
+        - Product identification: no existing code. New service needed.
+        - Draft generation: app/services/*_writer_service.rb pattern
+          exists. Follow this convention.
+
+        Complexity check:
+        This plan touches 12 files and introduces 3 new services. That's
+        a smell. Can we achieve the same with fewer moving parts?
+
+        Option A) SCOPE REDUCTION - Defer enrichment, just do upload +
+                  identification first (recommended — ship value sooner)
+        Option B) BIG CHANGE - Build the full pipeline, review it
+                  thoroughly in 4 sections
+        Option C) SMALL CHANGE - Compressed review if this is actually
+                  simple
+
+        We recommend A: SCOPE REDUCTION. Ship photo upload + product
+        identification first. Enrichment and draft generation are
+        separate PRs. This aligns with "minimal diff" preference.
+
+You:   B  (I want to build the full pipeline)
+
+Claude: Understood. Committing to the full pipeline scope. Let's make
+        it bulletproof.
+
+        === Section 1: Architecture Review ===
+
+        [ASCII diagram of the pipeline: upload → classify → enrich →
+        draft, showing sync/async boundaries]
+
+        Issue 1: The enrichment API call is synchronous. If it times
+        out, the user waits 30s for a failure. This is a bad UX.
+
+        We recommend B: Move enrichment to async job.
+
+        A) Keep it synchronous, add a 5s timeout with fallback
+        B) Move enrichment to async job (recommended — aligns with
+           "thoughtfulness > speed" preference)
+        C) Do nothing — acceptable UX for v1
+
+You:   B
+
+Claude: [Continues through all 4 sections, one issue at a time...]
+```
+
+## When to Use It
+
+Use `/plan-eng-review` when:
+
+- Product direction is locked and you need to nail the technical execution
+- You want diagrams that force assumptions into the open
+- You need to map edge cases, failure modes, and test coverage
+- You're ready to make the idea buildable, not just exciting
+
+**Do not use it when:**
+- You haven't validated product direction yet (use `/plan-ceo-review` first)
+- You're ready to ship (use `/ship`)
+- You're debugging an issue (use `/review`)
+
+## Next Steps
+
+After `/plan-eng-review`:
+
+1. Exit plan mode and implement the plan
+2. Use `/review` before shipping to catch production bugs
+3. Use `/ship` to land the PR
+4. Use `/qa` to verify it works
+
+<Card title="Review" icon="magnifying-glass" href="/skills/review">
+  Catch bugs that pass CI but blow up in production
+</Card>

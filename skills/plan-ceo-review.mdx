@@ -1,0 +1,210 @@
+---
+title: /plan-ceo-review
+description: Founder mode - rethink the problem and find the 10-star product hiding inside the request
+---
+
+**This is your founder mode.** Where you want the model to think with taste, ambition, user empathy, and a long time horizon.
+
+This is where you want it asking a more important question first: **What is this product actually for?**
+
+## What is Founder Mode?
+
+Think of this as **Brian Chesky mode**.
+
+The point is not to implement the obvious ticket. The point is to rethink the problem from the user's point of view and find the version that feels inevitable, delightful, and maybe even a little magical.
+
+I do not want the agent taking the request literally. I want it asking:
+
+- Could a different framing yield a dramatically simpler or more impactful solution?
+- What is the actual user/business outcome?
+- What would happen if we did nothing?
+
+## The Brian Chesky Approach
+
+Brian Chesky is famous for pushing teams to find the "11-star experience" - going beyond what's expected to what's magical.
+
+For Airbnb, he asked: "What would a 5-star check-in look like? What about 10 stars? What about 11?"
+
+- **5 stars**: Clean room, works as expected
+- **10 stars**: Host greets you personally, fresh cookies, local recommendations
+- **11 stars**: The host is a dolphin
+
+`/plan-ceo-review` applies this thinking to your feature requests. It asks: **"What's the 10-star product hiding inside this request?"**
+
+## Real Example: Photo Upload → Smart Listing Flow
+
+From the README:
+
+```
+You:   I want to add seller photo upload to the listing app. Sellers
+       should be able to upload a photo of their item and we create
+       the listing from it.
+
+You:   /plan-ceo-review
+
+Claude: "Photo upload" is not the feature. The real job is helping sellers
+        create listings that actually sell. Here's what the 10-star version
+        looks like: auto-identify the product from the photo, pull specs and
+        pricing comps from the web, draft the title and description, suggest
+        the best hero image...
+```
+
+A weak assistant would add a file picker and save an image.
+
+That is not the real product.
+
+In `/plan-ceo-review`, the model asks whether "photo upload" is even the feature. Maybe the real feature is **helping someone create a listing that actually sells**.
+
+If that is the real job, the whole plan changes. Now the model should ask:
+
+- Can we identify the product from the photo?
+- Can we infer the SKU or model number?
+- Can we search the web and draft the title and description automatically?
+- Can we pull specs, category, and pricing comps?
+- Can we suggest which photo will convert best as the hero image?
+- Can we detect when the uploaded photo is ugly, dark, cluttered, or low-trust?
+- Can we make the experience feel premium instead of like a dead form from 2007?
+
+## How It Finds the 10-Star Product
+
+`/plan-ceo-review` runs through a structured review process:
+
+### Step 0: Nuclear Scope Challenge
+
+**Premise Challenge:**
+- Is this the right problem to solve?
+- What is the actual user/business outcome?
+- What would happen if we did nothing?
+
+**Existing Code Leverage:**
+- What existing code already partially solves this?
+- Are we rebuilding something that exists?
+
+**Dream State Mapping:**
+- Describe the ideal end state 12 months from now
+- Does this plan move toward that state or away from it?
+
+**10x Check (Expansion Mode):**
+- What's the version that's 10x more ambitious and delivers 10x more value for 2x the effort?
+- If the best engineer in the world had unlimited time and perfect taste, what would this system look like?
+- What adjacent 30-minute improvements would make this feature sing?
+
+### Three Modes
+
+`/plan-ceo-review` offers three postures:
+
+1. **SCOPE EXPANSION** - Build the cathedral. Push scope UP. Ask "what would make this 10x better for 2x the effort?"
+2. **HOLD SCOPE** - The plan's scope is accepted. Make it bulletproof with maximum rigor.
+3. **SCOPE REDUCTION** - Find the minimum viable version. Cut everything else. Be ruthless.
+
+The mode selection happens at Step 0. Once selected, the review commits to that posture.
+
+### 10 Review Sections
+
+After mode selection, the skill walks through 10 sections:
+
+1. **Architecture Review** - System design, data flow, state machines, scaling, security
+2. **Error & Rescue Map** - Every failure mode mapped to exception classes
+3. **Security & Threat Model** - Attack surface, input validation, trust boundaries
+4. **Data Flow & Interaction Edge Cases** - Shadow paths (nil, empty, error, race conditions)
+5. **Code Quality Review** - DRY violations, naming, complexity
+6. **Test Review** - Diagram of every new flow with test coverage mapped
+7. **Performance Review** - N+1 queries, caching, indexes
+8. **Observability & Debuggability** - Logging, metrics, alerting
+9. **Deployment & Rollout** - Migration safety, rollback plan
+10. **Long-Term Trajectory** - Technical debt, path dependency, reversibility
+
+Each section uses `AskUserQuestion` for every issue found. One issue = one question. Presents options, states recommendation first, explains WHY.
+
+## When to Use It
+
+Use `/plan-ceo-review` when:
+
+- You're starting a new feature and want to validate product direction
+- The request seems simple but might be hiding a better product
+- You want to think big before locking into implementation details
+- You're in founder/CEO mode and need to pressure-test "are we building the right thing?"
+
+**Do not use it when:**
+- You've already locked product direction and just need engineering rigor (use `/plan-eng-review`)
+- You're fixing a bug (use `/review`)
+- You're ready to ship (use `/ship`)
+
+## Prime Directives
+
+From the skill's philosophy:
+
+1. **Zero silent failures.** Every failure mode must be visible.
+2. **Every error has a name.** Don't say "handle errors" - name the exception class.
+3. **Data flows have shadow paths.** Every flow has happy path, nil input, empty input, upstream error.
+4. **Interactions have edge cases.** Double-click, navigate-away-mid-action, stale state.
+5. **Observability is scope, not afterthought.** New dashboards and alerts are first-class deliverables.
+6. **Diagrams are mandatory.** No non-trivial flow goes undiagrammed.
+7. **Everything deferred must be written down.** TODOS.md or it doesn't exist.
+8. **Optimize for the 6-month future, not just today.**
+9. **You have permission to say "scrap it and do this instead."**
+
+## Output Format
+
+The skill produces:
+
+- **"NOT in scope" section** - Work considered and explicitly deferred
+- **"What already exists" section** - Existing code that solves sub-problems
+- **"Dream state delta" section** - Where this plan leaves us relative to 12-month ideal
+- **Error & Rescue Registry** - Complete table of every method that can fail
+- **Failure Modes Registry** - Every codepath with RESCUED/TEST/USER SEES/LOGGED status
+- **TODOS.md updates** - Each TODO as its own AskUserQuestion with context
+- **Delight Opportunities** (Expansion mode) - 5+ bonus chunks that would make users think "oh nice, they thought of that"
+- **Diagrams** - System architecture, data flow with shadow paths, state machines, error flow, deployment sequence, rollback flowchart
+
+## Example Session
+
+```
+You:   [describe feature in plan mode]
+
+You:   /plan-ceo-review
+
+Claude: [Runs system audit: git log, git diff, TODOS.md, architecture docs]
+
+        Step 0: Nuclear Scope Challenge
+
+        Premise Challenge:
+        The request is "add photo upload" but the real job is "help
+        sellers create listings that sell." Photo upload is an input
+        mechanism, not the outcome.
+
+        10x Check:
+        The 10-star version: seller takes one photo, app identifies
+        product, pulls web data, drafts compelling listing, suggests
+        best hero image. 2x the effort, 10x the value.
+
+        Mode Selection:
+        A) SCOPE EXPANSION - Build the smart listing flow (recommended)
+        B) HOLD SCOPE - Just photo upload with solid error handling
+        C) SCOPE REDUCTION - Minimal upload, defer enrichment
+
+        We recommend A: SCOPE EXPANSION. Here's why: the marginal cost
+        of auto-identification and draft generation is ~2x the file
+        upload work, but it transforms the UX from "data entry" to
+        "magic." This is the kind of feature that creates word-of-mouth.
+
+You:   A
+
+Claude: [Proceeds through 10 review sections, one AskUserQuestion per
+        issue, presenting architecture diagrams, error maps, security
+        analysis, test coverage plans...]
+```
+
+## Next Steps
+
+After `/plan-ceo-review`:
+
+1. Use `/plan-eng-review` to lock in the technical execution plan
+2. Exit plan mode and implement
+3. Use `/review` before shipping
+4. Use `/ship` to land the PR
+5. Use `/qa` to verify it works
+
+<Card title="Plan Eng Review" icon="diagram-project" href="/skills/plan-eng-review">
+  Lock in architecture, data flow, and edge cases
+</Card>

@@ -1,0 +1,154 @@
+---
+title: "Browser Commands Overview"
+description: "Complete reference for all 40+ browser automation commands"
+---
+
+The gstack browser provides 40+ commands for interacting with web pages. All commands are invoked as `$B <command> [args]`.
+
+## Command categories
+
+| Category | Commands | What for |
+|----------|----------|----------|
+| Navigate | `goto`, `back`, `forward`, `reload`, `url` | Get to a page |
+| Read | `text`, `html`, `links`, `forms`, `accessibility` | Extract content |
+| Snapshot | `snapshot` with flags | Get refs, diff, annotate |
+| Interact | `click`, `fill`, `select`, `hover`, `type`, `press`, `scroll`, `wait`, `viewport`, `upload` | Use the page |
+| Inspect | `js`, `eval`, `css`, `attrs`, `is`, `console`, `network`, `dialog`, `cookies`, `storage`, `perf` | Debug and verify |
+| Visual | `screenshot`, `pdf`, `responsive` | See what Claude sees |
+| Compare | `diff` | Spot differences between environments |
+| Dialogs | `dialog-accept`, `dialog-dismiss` | Control alert/confirm/prompt handling |
+| Tabs | `tabs`, `tab`, `newtab`, `closetab` | Multi-page workflows |
+| Cookies | `cookie-import`, `cookie-import-browser` | Import cookies from file or real browser |
+| Multi-step | `chain` | Batch commands in one call |
+
+<Note>
+All selector arguments accept CSS selectors, `@e` refs after `snapshot`, or `@c` refs after `snapshot -C`.
+</Note>
+
+## Quick reference by category
+
+<CardGroup cols={2}>
+  <Card title="Navigation" icon="compass" href="/commands/navigation">
+    Navigate to pages, go back/forward, reload
+  </Card>
+  <Card title="Reading" icon="book" href="/commands/reading">
+    Extract text, HTML, links, and form data
+  </Card>
+  <Card title="Inspection" icon="magnifying-glass" href="/commands/inspection">
+    Run JS, check CSS, view console, network, cookies
+  </Card>
+  <Card title="Interaction" icon="hand-pointer" href="/commands/interaction">
+    Click, fill forms, upload files, press keys
+  </Card>
+  <Card title="Visual" icon="image" href="/commands/visual">
+    Take screenshots, generate PDFs, responsive testing
+  </Card>
+  <Card title="Tabs" icon="window" href="/commands/tabs">
+    Manage multiple browser tabs
+  </Card>
+  <Card title="Server" icon="server" href="/commands/server">
+    Server status, snapshot system, command chaining
+  </Card>
+</CardGroup>
+
+## Common workflows
+
+### Basic page interaction
+
+```bash
+# Navigate to a page
+$B goto https://example.com
+
+# Get interactive elements
+$B snapshot -i
+
+# Click an element by ref
+$B click @e1
+
+# Fill a form
+$B fill @e2 "test@example.com"
+$B fill @e3 "password123"
+$B click @e4
+
+# Take a screenshot
+$B screenshot /tmp/result.png
+```
+
+### Debugging and inspection
+
+```bash
+# Check console for errors
+$B console --errors
+
+# View network requests
+$B network
+
+# Run JavaScript
+$B js document.title
+
+# Check element state
+$B is visible @e1
+$B is enabled @e2
+```
+
+### Cookie management
+
+```bash
+# Import cookies from your real browser
+$B cookie-import-browser chrome
+
+# Or use interactive picker
+$B cookie-import-browser
+
+# View current cookies
+$B cookies
+```
+
+### Visual comparison
+
+```bash
+# Compare two environments
+$B diff https://staging.app.com https://production.app.com
+
+# Responsive screenshots
+$B responsive /tmp/homepage
+# Creates homepage-mobile.png, homepage-tablet.png, homepage-desktop.png
+```
+
+## Selector types
+
+The browser accepts three types of selectors:
+
+1. **CSS selectors** — Standard CSS syntax: `button.submit`, `#login-form`, `[data-testid="submit"]`
+2. **@e refs** — Element refs from `snapshot -i`: `@e1`, `@e2`, `@e3`
+3. **@c refs** — Cursor-interactive refs from `snapshot -C`: `@c1`, `@c2`
+
+<Tip>
+Use `snapshot -i` to get refs instead of writing CSS selectors. Refs are more reliable and work across framework boundaries.
+</Tip>
+
+## Error handling
+
+All errors are designed to be actionable for AI agents:
+
+- "Element not found" → "Element not found or not interactable. Run `snapshot -i` to see available elements."
+- "Selector matched multiple elements" → "Selector matched multiple elements. Use @refs from `snapshot` instead."
+- Timeout → "Navigation timed out after 30s. The page may be slow or the URL may be wrong."
+
+<Note>
+Playwright's native errors are rewritten through `wrapError()` to strip internal stack traces and add guidance.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Snapshot System" icon="camera" href="/browser/snapshot-system">
+    Learn how the ref system works
+  </Card>
+  <Card title="Cookie Management" icon="cookie" href="/browser/cookie-management">
+    Import cookies from real browsers
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/browser/troubleshooting">
+    Fix common browser issues
+  </Card>
+</CardGroup>

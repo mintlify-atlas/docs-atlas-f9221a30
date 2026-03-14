@@ -1,0 +1,266 @@
+---
+title: "Troubleshooting"
+description: "Fix common browser issues and errors"
+---
+
+## Skill not showing up in Claude Code
+
+If `/browse` or other gstack skills don't appear in Claude Code:
+
+<Steps>
+  <Step title="Rebuild symlinks">
+    Run the setup script to rebuild skill symlinks:
+    
+    ```bash
+    cd ~/.claude/skills/gstack && ./setup
+    ```
+    
+    For project installs:
+    
+    ```bash
+    cd .claude/skills/gstack && ./setup
+    ```
+  </Step>
+  <Step title="Verify CLAUDE.md">
+    Check that your `CLAUDE.md` (global or project-level) lists the gstack skills.
+  </Step>
+  <Step title="Restart Claude Code">
+    Completely quit and restart Claude Code to reload skills.
+  </Step>
+</Steps>
+
+## `/browse` fails or binary not found
+
+If you get "browse: command not found" or "binary not found" errors:
+
+<Steps>
+  <Step title="Check if Bun is installed">
+    ```bash
+    bun --version
+    ```
+    
+    If not installed:
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+  </Step>
+  <Step title="Rebuild the binary">
+    ```bash
+    cd ~/.claude/skills/gstack
+    bun install
+    bun run build
+    ```
+    
+    For project installs:
+    ```bash
+    cd .claude/skills/gstack
+    bun install
+    bun run build
+    ```
+  </Step>
+  <Step title="Verify binary exists">
+    ```bash
+    ls -lh ~/.claude/skills/gstack/browse/dist/browse
+    ```
+    
+    Should show a ~58MB file.
+  </Step>
+</Steps>
+
+## Project copy is stale
+
+If your project-local gstack is out of sync with the global install:
+
+```bash
+# Remove old project copy
+for s in browse plan-ceo-review plan-eng-review review ship retro qa setup-browser-cookies; do 
+  rm -f .claude/skills/$s
+done
+rm -rf .claude/skills/gstack
+
+# Copy fresh from global
+cp -Rf ~/.claude/skills/gstack .claude/skills/gstack
+rm -rf .claude/skills/gstack/.git
+
+# Rebuild
+cd .claude/skills/gstack && ./setup
+```
+
+## Browser commands time out
+
+If commands like `goto` or `click` time out:
+
+1. **Check the URL** — Make sure it's reachable from your machine
+2. **Increase timeout** — Some pages are legitimately slow. The default timeout is 30s.
+3. **Check network** — The headless browser uses your machine's network. VPNs, proxies, and firewalls can interfere.
+4. **Restart the server** — `$B restart` kills and restarts the Chromium daemon
+
+## Refs not working after navigation
+
+If you get "Ref not found" errors after clicking a link or submitting a form:
+
+<Note>
+Refs are cleared on navigation. This is by design. Run `snapshot` again to get fresh refs for the new page.
+</Note>
+
+**Correct workflow:**
+```bash
+$B goto https://example.com
+$B snapshot -i
+$B click @e1  # This navigates to a new page
+$B snapshot -i  # Get fresh refs
+$B click @e2  # Now this works
+```
+
+## State file errors
+
+If you see "Failed to read state file" or "Invalid state file":
+
+```bash
+# Remove stale state file
+rm .gstack/browse.json
+
+# Next browse command will start fresh
+$B status
+```
+
+## Port conflicts
+
+If you get "Port already in use" or "Failed to bind":
+
+The browser picks a random port (10000-60000) and retries up to 5 times on collision. If this fails:
+
+1. **Check for orphaned servers** — `ps aux | grep "browse/src/server.ts"` and kill any stale processes
+2. **Restart the server** — `$B restart`
+
+## Cookie import issues
+
+### Keychain access denied
+
+You clicked "Deny" on the Keychain prompt. Run the command again and click "Allow" or "Always Allow."
+
+### No cookies found for domain
+
+- Make sure you're logged in to that domain in your real browser
+- Check the domain name (use `example.com`, not `https://example.com`)
+- Try the interactive picker: `$B cookie-import-browser`
+
+### Database is locked
+
+gstack automatically copies the cookie database to `/tmp` to avoid lock conflicts. If this error persists:
+
+1. Close the browser
+2. Run the command again
+
+## Performance issues
+
+If commands are slow:
+
+1. **First call is always slow** — ~3s to start Chromium. Every call after: ~100-200ms.
+2. **Check server status** — `$B status` shows uptime and health
+3. **Restart if stale** — `$B restart` to get a fresh Chromium instance
+4. **Check page complexity** — Pages with thousands of elements take longer to snapshot
+
+## Snapshot returns too many elements
+
+If `snapshot` returns 100+ elements:
+
+1. **Use `-i`** to show only interactive elements
+2. **Use `-s <selector>`** to scope to a specific section:
+   ```bash
+   $B snapshot -i -s "#login-form"
+   ```
+3. **Use `-d N`** to limit depth:
+   ```bash
+   $B snapshot -i -d 3
+   ```
+
+## Elements not clickable
+
+If you get "Element is not visible" or "Element is not clickable":
+
+1. **Wait for element to appear** — Some elements load dynamically:
+   ```bash
+   $B wait @e1
+   $B click @e1
+   ```
+2. **Scroll into view** — Element might be off-screen:
+   ```bash
+   $B scroll @e1
+   $B click @e1
+   ```
+3. **Check visibility** — Verify the element is actually visible:
+   ```bash
+   $B is visible @e1
+   ```
+4. **Try cursor-interactive refs** — Some custom components aren't in the ARIA tree:
+   ```bash
+   $B snapshot -C
+   $B click @c1
+   ```
+
+## Upgrading gstack
+
+To upgrade to the latest version:
+
+```bash
+cd ~/.claude/skills/gstack
+git fetch origin
+git reset --hard origin/main
+./setup
+```
+
+For project installs, update the project copy too:
+
+```bash
+# Update global first (see above)
+
+# Then update project copy
+for s in browse plan-ceo-review plan-eng-review review ship retro qa setup-browser-cookies; do 
+  rm -f .claude/skills/$s
+done
+rm -rf .claude/skills/gstack
+cp -Rf ~/.claude/skills/gstack .claude/skills/gstack
+rm -rf .claude/skills/gstack/.git
+cd .claude/skills/gstack && ./setup
+```
+
+## Uninstalling gstack
+
+To completely remove gstack:
+
+```bash
+# Remove skill symlinks
+for s in browse plan-ceo-review plan-eng-review review ship retro qa setup-browser-cookies; do 
+  rm -f ~/.claude/skills/$s
+done
+
+# Remove gstack directory
+rm -rf ~/.claude/skills/gstack
+
+# Remove gstack section from CLAUDE.md
+# (edit manually)
+```
+
+For project installs, also remove `.claude/skills/gstack` and update the project's `CLAUDE.md`.
+
+## Still having issues?
+
+If none of the above helps:
+
+1. **Check the logs** — `.gstack/browse-console.log`, `.gstack/browse-network.log`, `.gstack/browse-dialog.log`
+2. **Run status** — `$B status` shows server health and version
+3. **File an issue** — [github.com/garrytan/gstack/issues](https://github.com/garrytan/gstack/issues) with:
+   - Command you ran
+   - Error message
+   - OS and Bun version (`bun --version`)
+   - gstack version (from `VERSION` file)
+
+<CardGroup cols={2}>
+  <Card title="Browser Architecture" icon="diagram-project" href="/browser/architecture">
+    Understand how the browser works internally
+  </Card>
+  <Card title="Contributing" icon="code" href="/contributing">
+    Report bugs or contribute fixes
+  </Card>
+</CardGroup>
